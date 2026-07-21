@@ -5,5 +5,6 @@ export const DEFAULTS = {
   onSave: true,
   updateTtlMinutes: 30,
   timeoutSeconds: 120,
-  updateSeverity: "none" as const
+  updateSeverity: "none" as const,
+  maxConcurrentModules: 2
 };

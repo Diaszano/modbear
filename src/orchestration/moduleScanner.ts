@@ -2,17 +2,19 @@ import { readFile } from "node:fs/promises";
 import type { ModuleAnalysisSnapshot } from "../domain/analysis";
 import type { ModuleContext } from "../domain/module";
 import { analyzeReplacements, attachReplacementStatuses } from "../analyzers/replacementAnalyzer";
-import { analyzeUpdates } from "../analyzers/updateAnalyzer";
+import { analyzeUpdates, buildGoListArgs } from "../analyzers/updateAnalyzer";
 import { AnalysisCache } from "../cache/analysisCache";
 import { createCacheKey } from "../cache/cacheKey";
 import { parseGoModPositions } from "../parsers/goModPositionParser";
+import type { Logger } from "../logging/logger";
 
 export class ModuleScanner {
   public constructor(
     private readonly cache: AnalysisCache,
     private readonly goExecutable: string,
     private readonly timeoutMs: number,
-    private readonly ttlMs: number
+    private readonly ttlMs: number,
+    private readonly logger?: Logger
   ) {}
 
   public async scan(module: ModuleContext, signal: AbortSignal): Promise<ModuleAnalysisSnapshot> {
@@ -33,6 +35,9 @@ export class ModuleScanner {
     if (cached && Date.now() - Date.parse(cached.createdAt) <= this.ttlMs) return cached;
 
     const parsed = parseGoModPositions(goMod);
+    if (this.logger) {
+      this.logger.command(this.goExecutable, buildGoListArgs(), module.moduleRoot);
+    }
     const [rawDependencies, replacements] = await Promise.all([
       analyzeUpdates({
         module,

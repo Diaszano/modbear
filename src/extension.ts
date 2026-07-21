@@ -13,6 +13,8 @@ import { mapUpdateDiagnostics } from "./diagnostics/updateDiagnosticMapper";
 import { mapReplacementDiagnostics } from "./diagnostics/replacementDiagnosticMapper";
 import { parseGoModPositions } from "./parsers/goModPositionParser";
 import type { ModuleContext } from "./domain/module";
+import { Logger } from "./logging/logger";
+import { resolveTool } from "./execution/toolResolver";
 
 export { EXTENSION_ID };
 
@@ -23,12 +25,12 @@ async function requireTrustedWorkspace(): Promise<boolean> {
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  const output = vscode.window.createOutputChannel("ModBear", { log: true });
+  const output = new Logger();
   const diagnosticManager = new DiagnosticManager();
   
   const cachePath = context.globalStorageUri.fsPath;
   const cache = new AnalysisCache(cachePath);
-  const coordinator = new ScanCoordinator();
+  const coordinator = new ScanCoordinator(() => getConfig().maxConcurrentModules);
   
   let modules: readonly ModuleContext[] = [];
   
@@ -36,9 +38,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   
   const getConfig = () => readConfig();
   
-  const requestScan = (module: ModuleContext) => {
+  const requestScan = async (module: ModuleContext) => {
     const config = getConfig();
-    const scanner = new ModuleScanner(cache, config.goPath, config.timeoutSeconds * 1000, config.updateTtlMinutes * 60000);
+    let goPath = config.goPath;
+    try {
+      goPath = await resolveTool(config.goPath, "go");
+    } catch (err) {
+      vscode.window.showWarningMessage(`ModBear: Could not resolve go executable (${config.goPath}): ${err instanceof Error ? err.message : err}`);
+      return;
+    }
+    const scanner = new ModuleScanner(cache, goPath, config.timeoutSeconds * 1000, config.updateTtlMinutes * 60000, output);
     coordinator.scanModule({
       module,
       contentHash: "",

@@ -9,6 +9,7 @@ export interface ExtensionConfig {
   readonly updateTtlMinutes: number;
   readonly timeoutSeconds: number;
   readonly updateSeverity: "none" | "information" | "warning";
+  readonly maxConcurrentModules: number;
 }
 
 export function readConfig(resource?: vscode.Uri): ExtensionConfig {
@@ -20,6 +21,7 @@ export function readConfig(resource?: vscode.Uri): ExtensionConfig {
     onSave: config.get("scan.onSave", DEFAULTS.onSave),
     updateTtlMinutes: config.get("scan.updateTtlMinutes", DEFAULTS.updateTtlMinutes),
     timeoutSeconds: config.get("scan.timeoutSeconds", DEFAULTS.timeoutSeconds),
-    updateSeverity: config.get("diagnostics.updateSeverity", DEFAULTS.updateSeverity)
+    updateSeverity: config.get("diagnostics.updateSeverity", DEFAULTS.updateSeverity),
+    maxConcurrentModules: config.get("scan.maxConcurrentModules", DEFAULTS.maxConcurrentModules)
   };
 }
