@@ -44,3 +44,13 @@ test("resolveTool checks path existence when custom path given", async () => {
     { code: "ENOENT" }
   );
 });
+
+test("resolveTool checks executable permission when non-executable path given", async () => {
+  await assert.rejects(
+    resolveTool("./package.json", "go"),
+    (err: unknown) => {
+      assert(err instanceof Error);
+      return "code" in err && (err.code === "EACCES" || err.code === "EPERM");
+    }
+  );
+});

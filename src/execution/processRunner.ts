@@ -46,14 +46,21 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
       stdio: ["ignore", "pipe", "pipe"]
     });
 
-    let stdout = Buffer.alloc(0);
-    let stderr = Buffer.alloc(0);
+    const stdoutChunks: Buffer[] = [];
+    let stdoutBytes = 0;
+    const stderrChunks: Buffer[] = [];
+    let stderrBytes = 0;
     let settled = false;
+
+    const cleanup = (): void => {
+      clearTimeout(timer);
+      options.signal?.removeEventListener("abort", onAbort);
+    };
 
     const finishReject = (error: ProcessExecutionError): void => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      cleanup();
       child.kill("SIGKILL");
       reject(error);
     };
@@ -72,15 +79,17 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
     });
 
     child.stdout.on("data", (chunk: Buffer) => {
-      stdout = Buffer.concat([stdout, chunk]);
-      if (stdout.length > options.stdoutLimitBytes) {
+      stdoutChunks.push(chunk);
+      stdoutBytes += chunk.length;
+      if (stdoutBytes > options.stdoutLimitBytes) {
         finishReject(new ProcessExecutionError("Process stdout exceeded the configured limit", "output-limit"));
       }
     });
 
     child.stderr.on("data", (chunk: Buffer) => {
-      stderr = Buffer.concat([stderr, chunk]);
-      if (stderr.length > options.stderrLimitBytes) {
+      stderrChunks.push(chunk);
+      stderrBytes += chunk.length;
+      if (stderrBytes > options.stderrLimitBytes) {
         finishReject(new ProcessExecutionError("Process stderr exceeded the configured limit", "output-limit"));
       }
     });
@@ -88,13 +97,12 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
     child.on("close", (exitCode, signal) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
-      options.signal?.removeEventListener("abort", onAbort);
+      cleanup();
       resolve({
         exitCode,
         signal,
-        stdout: stdout.toString("utf8"),
-        stderr: stderr.toString("utf8"),
+        stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+        stderr: Buffer.concat(stderrChunks).toString("utf8"),
         durationMs: Date.now() - started
       });
     });
