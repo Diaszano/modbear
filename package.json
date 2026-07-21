@@ -1,0 +1,169 @@
+{
+  "name": "modbear",
+  "displayName": "ModBear",
+  "description": "Dependency health and vulnerability insights for Go modules, directly inside VS Code.",
+  "version": "0.1.0",
+  "publisher": "diaszano",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Diaszano/modbear"
+  },
+  "engines": {
+    "vscode": "^1.109.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "go",
+    "golang",
+    "dependencies",
+    "security",
+    "govulncheck",
+    "go.mod"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/go.mod",
+    "onLanguage:go.mod"
+  ],
+  "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "%workspaceTrust.description%",
+      "restrictedConfigurations": [
+        "modBear.go.path",
+        "modBear.govulncheck.path",
+        "modBear.vulnerability.database"
+      ]
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "The extension requires local Go tooling and filesystem access."
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "modBear.scanWorkspace",
+        "title": "ModBear: Scan Workspace"
+      },
+      {
+        "command": "modBear.scanModule",
+        "title": "ModBear: Scan Current Module"
+      },
+      {
+        "command": "modBear.showDetails",
+        "title": "ModBear: Show Dependency Details"
+      },
+      {
+        "command": "modBear.copySuggestion",
+        "title": "ModBear: Copy Suggested Command"
+      },
+      {
+        "command": "modBear.showOutput",
+        "title": "ModBear: Show Output"
+      }
+    ],
+    "configuration": {
+      "title": "ModBear",
+      "properties": {
+        "modBear.enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "modBear.go.path": {
+          "type": "string",
+          "default": "go",
+          "scope": "window"
+        },
+        "modBear.scan.onOpen": {
+          "type": "boolean",
+          "default": true
+        },
+        "modBear.scan.onSave": {
+          "type": "boolean",
+          "default": true
+        },
+        "modBear.scan.updateTtlMinutes": {
+          "type": "number",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 1440
+        },
+        "modBear.scan.maxConcurrentModules": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 8
+        },
+        "modBear.scan.timeoutSeconds": {
+          "type": "number",
+          "default": 120,
+          "minimum": 5,
+          "maximum": 900
+        },
+        "modBear.inlayHints.enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "modBear.inlayHints.showIndirect": {
+          "type": "boolean",
+          "default": true
+        },
+        "modBear.inlayHints.showUpToDate": {
+          "type": "boolean",
+          "default": false
+        },
+        "modBear.inlayHints.showUpdateKind": {
+          "type": "boolean",
+          "default": true
+        },
+        "modBear.diagnostics.updateSeverity": {
+          "type": "string",
+          "enum": [
+            "none",
+            "information",
+            "warning"
+          ],
+          "default": "none"
+        },
+        "modBear.output.logLevel": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warn",
+            "info",
+            "debug"
+          ],
+          "default": "info"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "bundle": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "test:unit": "npm run compile && node --test 'out/test/unit/**/*.test.js'",
+    "test:integration": "npm run compile && node --test 'out/test/integration/**/*.test.js'",
+    "test:extension": "npm run compile && npm run bundle && node out/test/runExtensionTests.js",
+    "package": "npm run check && npm run bundle && vsce package --no-dependencies",
+    "vscode:prepublish": "npm run bundle"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.109.0",
+    "@vscode/test-electron": "^3.0.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.28.1",
+    "glob": "^11.0.0",
+    "mocha": "^11.0.0",
+    "typescript": "^5.7.0"
+  }
+}

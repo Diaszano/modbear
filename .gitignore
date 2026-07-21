@@ -4,5 +4,3 @@ dist/
 .vscode-test/
 *.vsix
 .DS_Store
-.worktrees/
-worktrees/
