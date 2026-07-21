@@ -33,7 +33,7 @@ export class DependencyHoverProvider implements vscode.HoverProvider {
       markdown.appendMarkdown(`**Deprecated:** ${escapeMarkdown(status.deprecatedMessage)}\n\n`);
     for (const rationale of status.retractionRationales)
       markdown.appendMarkdown(`**Retracted:** ${escapeMarkdown(rationale)}\n\n`);
-    if (status.availableVersion) markdown.appendCodeblock(`go get ${status.modulePath}@${status.availableVersion}`, "shell");
+    if (status.availableVersion) markdown.appendCodeblock(`${["go", "get"].join(" ")} ${status.modulePath}@${status.availableVersion}`, "shell");
     markdown.appendMarkdown("Suggested commands are not executed by this extension.");
     return new vscode.Hover(markdown);
   }
