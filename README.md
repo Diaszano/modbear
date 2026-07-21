@@ -31,7 +31,7 @@ ModBear parses deprecation and retraction metadata published by upstream module 
 ## Supported Go/VS Code versions
 
 - **VS Code**: `^1.109.0` or newer.
-- **Go Toolchain**: Go 1.18 or newer (requires `go list -u -m -json all` support).
+- **Go Toolchain**: Go 1.21 or newer (requires `go list -u -m -json all` support).
 
 ## Workspace Trust
 
