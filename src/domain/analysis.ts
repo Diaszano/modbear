@@ -38,3 +38,17 @@ export interface DependencyStatus {
   readonly replacement?: ReplacementStatus;
   readonly errors: readonly AnalysisError[];
 }
+
+export type AnalyzerState = "idle" | "running" | "complete" | "partial" | "failed" | "unavailable";
+
+export interface ModuleAnalysisSnapshot {
+  readonly moduleId: string;
+  readonly contentHash: string;
+  readonly createdAt: string;
+  readonly stale: boolean;
+  readonly updateState: AnalyzerState;
+  readonly dependencies: readonly DependencyStatus[];
+  readonly replacements: readonly ReplacementStatus[];
+  readonly errors: readonly AnalysisError[];
+}
+
