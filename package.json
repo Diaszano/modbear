@@ -4,6 +4,7 @@
   "description": "Dependency health and vulnerability insights for Go modules, directly inside VS Code.",
   "version": "0.1.0",
   "publisher": "diaszano",
+  "icon": "resources/modbear.png",
   "license": "MIT",
   "repository": {
     "type": "git",
