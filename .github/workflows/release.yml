@@ -1,0 +1,59 @@
+name: Release and Package
+
+on:
+  workflow_call:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.repository }}-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Semantic release and VSIX package
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Snapshot release tags
+        shell: bash
+        run: .github/scripts/resolve-release-tag.sh snapshot "$RUNNER_TEMP/release-tags-before.txt"
+
+      - name: Create semantic release
+        id: semantic-release
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm exec semantic-release
+
+      - name: Report semantic-release status
+        if: steps.semantic-release.outcome == 'failure'
+        run: |
+          echo "::warning::semantic-release exited non-zero. Downstream steps recover via the tag-snapshot diff in resolve-release-tag.sh."
+
+      - name: Resolve published version
+        id: release
+        shell: bash
+        run: .github/scripts/resolve-release-tag.sh resolve "$RUNNER_TEMP/release-tags-before.txt" "$GITHUB_OUTPUT"
+
+      - name: Publish to VS Code Marketplace
+        if: steps.release.outputs.published == 'true'
+        run: npx vsce publish --packagePath modbear-${{ steps.release.outputs.version }}.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}

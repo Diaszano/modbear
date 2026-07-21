@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+
+  commitlint:
+    name: Commit messages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate commit messages
+        env:
+          FROM_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TO_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: .github/scripts/validate-commits.sh "$FROM_SHA" "$TO_SHA"
+
+      - name: Validate PR target branch policy
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        run: |
+          if [[ "${{ github.head_ref }}" != "dev" && "${{ github.head_ref }}" != "development" ]]; then
+            echo "::error::Only pull requests coming from the 'dev' (or 'development') branch are allowed to be merged into 'main'."
+            exit 1
+          fi
+
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Check types
+        run: npm run check
+
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Unit Tests
+        run: npm run test:unit
+      - name: Integration Tests
+        run: npm run test:integration
+      - name: Headless Extension Host Tests
+        run: xvfb-run -a npm run test:extension
+
+  test-release:
+    name: Test release configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test release configuration
+        run: npm run test:release
+
+  build:
+    name: Package VSIX
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Package VSIX
+        run: npm run package:vsix
+
+  release:
+    name: Release and publish
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    needs: [commitlint, lint, test, test-release, build]
+    permissions:
+      contents: write
+      packages: write
+    uses: ./.github/workflows/release.yml
