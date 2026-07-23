@@ -6,6 +6,7 @@ import { ScanCoordinator } from "./orchestration/scanCoordinator";
 import { ModuleScanner } from "./orchestration/moduleScanner";
 import { DependencyHoverProvider } from "./providers/dependencyHoverProvider";
 import { DependencyInlayHintsProvider } from "./providers/dependencyInlayHintsProvider";
+import { StatusBarManager } from "./providers/statusBarManager";
 import { discoverModules } from "./discovery/moduleDiscovery";
 import { resolveActiveModule } from "./discovery/activeModuleResolver";
 import { readConfig } from "./config/config";
@@ -31,6 +32,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const cachePath = context.globalStorageUri.fsPath;
   const cache = new AnalysisCache(cachePath);
   const coordinator = new ScanCoordinator(() => getConfig().maxConcurrentModules);
+  const statusBarManager = new StatusBarManager(coordinator);
   
   let modules: readonly ModuleContext[] = [];
   
@@ -41,9 +43,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const requestScan = async (module: ModuleContext) => {
     const config = getConfig();
     let goPath = config.goPath;
+    statusBarManager.markScanStarted(module.id);
     try {
       goPath = await resolveTool(config.goPath, "go");
     } catch (err) {
+      statusBarManager.markScanFinished(module.id);
       vscode.window.showWarningMessage(`ModBear: Could not resolve go executable (${config.goPath}): ${err instanceof Error ? err.message : err}`);
       return;
     }
@@ -52,7 +56,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       module,
       contentHash: "",
       run: (signal) => scanner.scan(module, signal)
-    }).catch(err => output.error(`Scan failed for ${module.id}: ${err}`));
+    }).catch(err => {
+      statusBarManager.markScanFinished(module.id);
+      output.error(`Scan failed for ${module.id}: ${err}`);
+    });
   };
 
   const hoverProvider = new DependencyHoverProvider(coordinator, resolveModule);
@@ -62,7 +69,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     output,
     diagnosticManager,
     coordinator,
-    inlayProvider
+    inlayProvider,
+    statusBarManager
   );
 
   const documentSelector: vscode.DocumentSelector = { pattern: "**/go.mod", scheme: "file" };
@@ -74,10 +82,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   if (vscode.workspace.isTrusted) {
     const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
-    discoverModules(roots, new AbortController().signal).then(m => { modules = m; });
+    discoverModules(roots, new AbortController().signal).then(m => {
+      modules = m;
+      statusBarManager.setModules(m);
+    });
   }
 
   coordinator.events.onSnapshot((snapshot) => {
+    statusBarManager.markScanFinished(snapshot.moduleId);
     inlayProvider.refresh();
     
     const module = modules.find(m => m.id === snapshot.moduleId);
@@ -133,6 +145,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       output.info("Manual scan triggered");
       const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
       modules = await discoverModules(roots, new AbortController().signal);
+      statusBarManager.setModules(modules);
       for (const module of modules) requestScan(module);
     }),
     vscode.commands.registerCommand("modBear.copySuggestion", async (suggestion: string) => {
@@ -140,6 +153,51 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.commands.registerCommand("modBear.showOutput", () => {
       output.show();
+    }),
+    vscode.commands.registerCommand("modBear.showStatusBarMenu", async () => {
+      const items = [
+        {
+          label: "$(sync) Scan Workspace",
+          description: "Force scan all Go modules in the workspace",
+          action: () => vscode.commands.executeCommand("modBear.scanWorkspace")
+        },
+        {
+          label: "$(output) Show Output Logs",
+          description: "Open ModBear's output channel to view logs",
+          action: () => vscode.commands.executeCommand("modBear.showOutput")
+        }
+      ];
+
+      for (const module of modules) {
+        const snap = coordinator.getSnapshot(module.id);
+        let detail = "Scan pending...";
+        if (snap) {
+          if (snap.updateState === "failed") {
+            detail = "Scan failed";
+          } else {
+            const updates = snap.dependencies.filter(d => d.availableVersion).length;
+            const warnings = snap.dependencies.filter(d => d.deprecatedMessage || d.retractionRationales.length > 0 || d.errors.length > 0).length;
+            detail = updates === 0 && warnings === 0 ? "Up to date" : `${updates} updates, ${warnings} warnings`;
+          }
+        }
+        items.push({
+          label: `$(file-code) ${module.id}`,
+          description: detail,
+          action: async () => {
+            const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(module.goModPath));
+            await vscode.window.showTextDocument(doc);
+          }
+        });
+      }
+
+      const selected = await vscode.window.showQuickPick(items, {
+        title: "ModBear: Go Dependency Insights",
+        placeHolder: "Select an action or module"
+      });
+
+      if (selected) {
+        await selected.action();
+      }
     })
   );
 
