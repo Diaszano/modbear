@@ -52,3 +52,24 @@ export interface ModuleAnalysisSnapshot {
   readonly errors: readonly AnalysisError[];
 }
 
+export interface SnapshotMetrics {
+  readonly updates: number;
+  readonly warnings: number;
+}
+
+export function getSnapshotMetrics(snapshot: ModuleAnalysisSnapshot): SnapshotMetrics {
+  let updates = 0;
+  let warnings = 0;
+  for (const dep of snapshot.dependencies) {
+    if (dep.availableVersion) {
+      updates++;
+    }
+    if (dep.deprecatedMessage || dep.retractionRationales.length > 0 || dep.errors.length > 0) {
+      warnings++;
+    }
+  }
+  return { updates, warnings };
+}
+
+
+

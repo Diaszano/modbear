@@ -1,11 +1,12 @@
 import * as vscode from "vscode";
 import type { ScanCoordinator } from "../orchestration/scanCoordinator";
 import type { ModuleContext } from "../domain/module";
+import { getSnapshotMetrics } from "../domain/analysis";
 
 export class StatusBarManager implements vscode.Disposable {
   private readonly statusBarItem: vscode.StatusBarItem;
   private readonly coordinator: ScanCoordinator;
-  private readonly activeScans = new Set<string>();
+  private activeScansCount = 0;
   private modules: readonly ModuleContext[] = [];
 
   constructor(coordinator: ScanCoordinator) {
@@ -24,20 +25,22 @@ export class StatusBarManager implements vscode.Disposable {
     this.update();
   }
 
-  public markScanStarted(moduleId: string): void {
-    this.activeScans.add(moduleId);
+  public markScanStarted(_moduleId?: string): void {
+    this.activeScansCount++;
     this.update();
   }
 
-  public markScanFinished(moduleId: string): void {
-    this.activeScans.delete(moduleId);
+  public markScanFinished(_moduleId?: string): void {
+    this.activeScansCount = Math.max(0, this.activeScansCount - 1);
     this.update();
   }
 
   public update(): void {
-    if (this.activeScans.size > 0) {
+    if (this.activeScansCount > 0) {
       this.statusBarItem.text = "$(sync~spin) ModBear: Scanning...";
-      this.statusBarItem.tooltip = "ModBear is scanning Go modules for updates and vulnerabilities...";
+      const tooltip = new vscode.MarkdownString("ModBear is scanning Go modules for updates and vulnerabilities...", true);
+      tooltip.isTrusted = true;
+      this.statusBarItem.tooltip = tooltip;
       return;
     }
 
@@ -53,29 +56,36 @@ export class StatusBarManager implements vscode.Disposable {
         hasErrors = true;
       }
 
-      for (const dep of snapshot.dependencies) {
-        if (dep.availableVersion) {
-          totalUpdates++;
-        }
-        if (dep.deprecatedMessage || dep.retractionRationales.length > 0 || dep.errors.length > 0) {
-          totalWarnings++;
-        }
-      }
+      const { updates, warnings } = getSnapshotMetrics(snapshot);
+      totalUpdates += updates;
+      totalWarnings += warnings;
     }
 
     if (hasErrors) {
       this.statusBarItem.text = "$(error) ModBear: Failed";
-      this.statusBarItem.tooltip = "Some module scans failed. Click to open logs.";
+      const tooltip = new vscode.MarkdownString("Some module scans failed. Click to open logs.", true);
+      tooltip.isTrusted = true;
+      this.statusBarItem.tooltip = tooltip;
     } else if (totalUpdates > 0 || totalWarnings > 0) {
       const parts: string[] = [];
       if (totalUpdates > 0) parts.push(`${totalUpdates} update${totalUpdates > 1 ? "s" : ""}`);
       if (totalWarnings > 0) parts.push(`${totalWarnings} warning${totalWarnings > 1 ? "s" : ""}`);
 
       this.statusBarItem.text = `🐻 ModBear: ${parts.join(", ")}`;
-      this.statusBarItem.tooltip = `ModBear dependency analysis completed.\n- Updates: ${totalUpdates}\n- Warnings: ${totalWarnings}\n\nClick for actions.`;
+      const tooltip = new vscode.MarkdownString(
+        `ModBear dependency analysis completed.\n- Updates: ${totalUpdates}\n- Warnings: ${totalWarnings}\n\nClick for actions.`,
+        true
+      );
+      tooltip.isTrusted = true;
+      this.statusBarItem.tooltip = tooltip;
     } else {
       this.statusBarItem.text = "🐻 ModBear: OK";
-      this.statusBarItem.tooltip = "All Go modules analyzed. Dependencies are up to date.\nClick for actions.";
+      const tooltip = new vscode.MarkdownString(
+        "All Go modules analyzed. Dependencies are up to date.\nClick for actions.",
+        true
+      );
+      tooltip.isTrusted = true;
+      this.statusBarItem.tooltip = tooltip;
     }
   }
 

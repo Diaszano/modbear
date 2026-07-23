@@ -53,7 +53,34 @@ export class ScanCoordinator {
     const controller = new AbortController();
     this.running.set(request.module.id, controller);
     try {
-      const snapshot = Object.freeze(await request.run(controller.signal));
+      let snapshot: ModuleAnalysisSnapshot;
+      try {
+        snapshot = Object.freeze(await request.run(controller.signal));
+      } catch (err) {
+        if (controller.signal.aborted) {
+          throw err;
+        }
+        const errorDetail = err instanceof Error ? err.message : String(err);
+        const failedSnapshot: ModuleAnalysisSnapshot = Object.freeze({
+          moduleId: request.module.id,
+          contentHash: request.contentHash,
+          createdAt: new Date().toISOString(),
+          stale: false,
+          updateState: "failed",
+          dependencies: [],
+          replacements: [],
+          errors: [
+            {
+              code: "unknown" as const,
+              message: errorDetail
+            }
+          ]
+        });
+        this.snapshots.set(request.module.id, failedSnapshot);
+        this.events.emitSnapshot(failedSnapshot);
+        throw err;
+      }
+
       if (controller.signal.aborted) throw new Error("Scan cancelled");
       this.snapshots.set(request.module.id, snapshot);
       this.events.emitSnapshot(snapshot);

@@ -115,6 +115,31 @@ test("ScanCoordinator dispose aborts active scans", async () => {
   assert.ok(aborted);
 });
 
+test("ScanCoordinator stores and emits fallback failed snapshot on non-abort error", async () => {
+  const coordinator = new ScanCoordinator();
+  const emitted: ModuleAnalysisSnapshot[] = [];
+  coordinator.events.onSnapshot((s) => emitted.push(s));
+
+  const scanPromise = coordinator.scanModule({
+    module: dummyModule,
+    contentHash: "hash-err",
+    run: async () => {
+      throw new Error("go list command failed");
+    }
+  });
+
+  await assert.rejects(scanPromise, { message: "go list command failed" });
+
+  const snapshot = coordinator.getSnapshot("mod-1");
+  assert.ok(snapshot);
+  assert.equal(snapshot.updateState, "failed");
+  assert.equal(snapshot.errors.length, 1);
+  assert.equal(snapshot.errors[0]?.message, "go list command failed");
+
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0]?.updateState, "failed");
+});
+
 test("AnalysisCache stores and retrieves snapshots from disk", async () => {
   const tmpDir = await mkdtemp(path.join(os.tmpdir(), "modbear-test-cache-"));
   try {

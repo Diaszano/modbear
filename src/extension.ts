@@ -13,6 +13,7 @@ import { readConfig } from "./config/config";
 import { mapUpdateDiagnostics } from "./diagnostics/updateDiagnosticMapper";
 import { mapReplacementDiagnostics } from "./diagnostics/replacementDiagnosticMapper";
 import { parseGoModPositions } from "./parsers/goModPositionParser";
+import { ModuleAnalysisSnapshot, getSnapshotMetrics } from "./domain/analysis";
 import type { ModuleContext } from "./domain/module";
 import { Logger } from "./logging/logger";
 import { resolveTool } from "./execution/toolResolver";
@@ -57,7 +58,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       contentHash: "",
       run: (signal) => scanner.scan(module, signal)
     }).catch(err => {
-      statusBarManager.markScanFinished(module.id);
+      if (err instanceof Error && err.message === "Scan cancelled") {
+        statusBarManager.markScanFinished(module.id);
+      }
       output.error(`Scan failed for ${module.id}: ${err}`);
     });
   };
@@ -175,8 +178,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           if (snap.updateState === "failed") {
             detail = "Scan failed";
           } else {
-            const updates = snap.dependencies.filter(d => d.availableVersion).length;
-            const warnings = snap.dependencies.filter(d => d.deprecatedMessage || d.retractionRationales.length > 0 || d.errors.length > 0).length;
+            const { updates, warnings } = getSnapshotMetrics(snap);
             detail = updates === 0 && warnings === 0 ? "Up to date" : `${updates} updates, ${warnings} warnings`;
           }
         }
@@ -184,8 +186,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           label: `$(file-code) ${module.id}`,
           description: detail,
           action: async () => {
-            const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(module.goModPath));
-            await vscode.window.showTextDocument(doc);
+            try {
+              const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(module.goModPath));
+              await vscode.window.showTextDocument(doc);
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              output.error(`Failed to open module file ${module.goModPath}: ${msg}`);
+              vscode.window.showErrorMessage(`Could not open ${module.goModPath}: ${msg}`);
+            }
           }
         });
       }

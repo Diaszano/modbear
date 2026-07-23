@@ -5,6 +5,12 @@ import type { ModuleContext } from "../../domain/module";
 import type { ScanCoordinator } from "../../orchestration/scanCoordinator";
 import { StatusBarManager } from "../../providers/statusBarManager";
 
+function getTooltipText(tooltip: string | vscode.MarkdownString | undefined): string {
+  if (!tooltip) return "";
+  if (typeof tooltip === "string") return tooltip;
+  return tooltip.value ?? String(tooltip);
+}
+
 suite("StatusBarManager Test Suite", () => {
   const dummyModule: ModuleContext = {
     id: "mod-1",
@@ -21,20 +27,31 @@ suite("StatusBarManager Test Suite", () => {
     assert.equal(item.alignment, vscode.StatusBarAlignment.Right);
     assert.equal(item.priority, 100);
     assert.equal(item.text, "🐻 ModBear: OK");
-    assert.ok(item.tooltip?.toString().includes("All Go modules analyzed"));
+    assert.ok(item.tooltip instanceof vscode.MarkdownString);
+    assert.equal((item.tooltip as vscode.MarkdownString).isTrusted, true);
+    assert.ok(getTooltipText(item.tooltip).includes("All Go modules analyzed"));
 
     manager.dispose();
   });
 
-  test("shows scanning state when active scans exist", () => {
+  test("shows scanning state when active scans exist and handles concurrent scan counts", () => {
     const coordinator = { getSnapshot: () => undefined } as unknown as ScanCoordinator;
     const manager = new StatusBarManager(coordinator);
     const item = manager.getStatusBarItem();
 
     manager.markScanStarted("mod-1");
     assert.equal(item.text, "$(sync~spin) ModBear: Scanning...");
-    assert.ok(item.tooltip?.toString().includes("scanning Go modules"));
+    assert.ok(getTooltipText(item.tooltip).includes("scanning Go modules"));
 
+    // Concurrent scan started for another or same module
+    manager.markScanStarted("mod-1");
+    assert.equal(item.text, "$(sync~spin) ModBear: Scanning...");
+
+    // First scan finished -> still scanning because count > 0
+    manager.markScanFinished("mod-1");
+    assert.equal(item.text, "$(sync~spin) ModBear: Scanning...");
+
+    // Second scan finished -> now OK
     manager.markScanFinished("mod-1");
     assert.equal(item.text, "🐻 ModBear: OK");
 
@@ -59,7 +76,7 @@ suite("StatusBarManager Test Suite", () => {
 
     const item = manager.getStatusBarItem();
     assert.equal(item.text, "$(error) ModBear: Failed");
-    assert.ok(item.tooltip?.toString().includes("Some module scans failed"));
+    assert.ok(getTooltipText(item.tooltip).includes("Some module scans failed"));
 
     manager.dispose();
   });
@@ -98,8 +115,8 @@ suite("StatusBarManager Test Suite", () => {
 
     const item = manager.getStatusBarItem();
     assert.equal(item.text, "🐻 ModBear: 2 updates, 1 warning");
-    assert.ok(item.tooltip?.toString().includes("Updates: 2"));
-    assert.ok(item.tooltip?.toString().includes("Warnings: 1"));
+    assert.ok(getTooltipText(item.tooltip).includes("Updates: 2"));
+    assert.ok(getTooltipText(item.tooltip).includes("Warnings: 1"));
 
     manager.dispose();
   });
