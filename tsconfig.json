@@ -13,7 +13,9 @@
     "useUnknownInCatchVariables": true,
     "sourceMap": true,
     "skipLibCheck": true,
-    "types": ["node", "vscode"]
+    "types": ["node", "vscode"],
+    "incremental": true,
+    "tsBuildInfoFile": "out/.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
