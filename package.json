@@ -67,6 +67,10 @@
       {
         "command": "modBear.showOutput",
         "title": "ModBear: Show Output"
+      },
+      {
+        "command": "modBear.showStatusBarMenu",
+        "title": "ModBear: Show Status Bar Menu"
       }
     ],
     "configuration": {
