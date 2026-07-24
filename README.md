@@ -38,7 +38,7 @@ ModBear parses deprecation and retraction metadata published by upstream module 
 
 ModBear respects VS Code Workspace Trust boundaries:
 - In **Untrusted Workspaces**, ModBear runs in Restricted Mode: external subprocess execution (`go list`) is completely disabled to protect your system from executing arbitrary code or tools in untrusted repositories.
-- Executable path settings (`modBear.go.path`, `modBear.govulncheck.path`, `modBear.vulnerability.database`) are restricted and can only be set in trusted user or workspace scopes.
+- The Go executable path setting (`modBear.go.path`) is restricted and can only be set in trusted user or workspace scopes.
 
 ## Private modules and network access
 

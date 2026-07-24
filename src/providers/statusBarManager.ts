@@ -38,7 +38,7 @@ export class StatusBarManager implements vscode.Disposable {
   public update(): void {
     if (this.activeScansCount > 0) {
       this.statusBarItem.text = "$(sync~spin) ModBear: Scanning...";
-      const tooltip = new vscode.MarkdownString("ModBear is scanning Go modules for updates and vulnerabilities...", true);
+      const tooltip = new vscode.MarkdownString("ModBear is scanning Go modules for updates, deprecations, and retractions...", true);
       tooltip.isTrusted = true;
       this.statusBarItem.tooltip = tooltip;
       return;

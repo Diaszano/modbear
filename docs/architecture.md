@@ -4,7 +4,7 @@ This document outlines the software architecture, design principles, and compone
 
 ## System Architecture
 
-ModBear is built as an event-driven, decoupled VS Code extension. It provides real-time dependency analysis and inlay hint overlays without interfering with language server features or editing workspace files.
+ModBear is built as an event-driven, decoupled VS Code extension. It provides available-update, deprecation, and retraction analysis with inlay hint overlays without interfering with language server features or editing workspace files.
 
 ```
 +-------------------------------------------------------------------+

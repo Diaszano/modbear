@@ -49,7 +49,7 @@ ModBear strictly adheres to VS Code Workspace Trust specifications:
 
 - **Restricted Mode in Untrusted Workspaces**: If a workspace is untrusted (`vscode.workspace.isTrusted === false`), all subprocess execution is completely disabled.
 - **No Background Operations**: In untrusted workspaces, background scans, auto-discovery, and toolchain invocations are prevented.
-- **Restricted Configuration Settings**: Executable path configurations (`modBear.go.path`, `modBear.govulncheck.path`, `modBear.vulnerability.database`) are marked with `"scope": "window"` and restricted capabilities so untrusted workspaces cannot redirect execution to malicious binaries.
+- **Restricted Configuration Settings**: The Go executable path configuration (`modBear.go.path`) is marked with `"scope": "window"` and restricted capabilities so untrusted workspaces cannot redirect execution to malicious binaries.
 
 ## 5. Test-Fixture Hash Invariant
 

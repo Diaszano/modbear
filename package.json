@@ -1,7 +1,7 @@
 {
   "name": "modbear",
   "displayName": "ModBear",
-  "description": "Dependency health and vulnerability insights for Go modules, directly inside VS Code.",
+  "description": "Dependency updates and lifecycle insights for Go modules, directly inside VS Code.",
   "version": "1.2.0",
   "publisher": "diaszano",
   "icon": "resources/modbear.png",
@@ -23,7 +23,6 @@
     "golang",
     "dependencies",
     "security",
-    "govulncheck",
     "go.mod"
   ],
   "activationEvents": [
@@ -36,9 +35,7 @@
       "supported": "limited",
       "description": "%workspaceTrust.description%",
       "restrictedConfigurations": [
-        "modBear.go.path",
-        "modBear.govulncheck.path",
-        "modBear.vulnerability.database"
+        "modBear.go.path"
       ]
     },
     "virtualWorkspaces": {
@@ -188,8 +185,12 @@
     "esbuild": "^0.28.1",
     "glob": "^11.0.0",
     "js-yaml": "^5.2.1",
-    "mocha": "^11.0.0",
+    "mocha": "^11.7.6",
     "semantic-release": "^25.0.8",
     "typescript": "^5.7.0"
+  },
+  "overrides": {
+    "diff": "8.0.4",
+    "serialize-javascript": "7.0.5"
   }
 }
