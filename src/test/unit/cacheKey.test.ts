@@ -18,3 +18,17 @@ test("identical inputs generate identical cache keys", () => {
   const input = { moduleRoot: "/x", goMod: "a", settings: { indirect: true } };
   assert.equal(createCacheKey(input), createCacheKey(input));
 });
+
+test("changing GOPROXY changes the cache key", () => {
+  const original = process.env.GOPROXY;
+  try {
+    process.env.GOPROXY = "https://proxy.golang.org,direct";
+    const key1 = createCacheKey({ moduleRoot: "/x" });
+    process.env.GOPROXY = "direct";
+    const key2 = createCacheKey({ moduleRoot: "/x" });
+    assert.notEqual(key1, key2);
+  } finally {
+    process.env.GOPROXY = original;
+  }
+});
+

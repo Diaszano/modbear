@@ -9,6 +9,8 @@ export interface ProcessOptions {
   readonly stdoutLimitBytes: number;
   readonly stderrLimitBytes: number;
   readonly signal?: AbortSignal;
+  readonly onStdoutChunk?: (chunk: Buffer) => void;
+  readonly collectStdout?: boolean;
 }
 
 export interface ProcessResult {
@@ -127,10 +129,15 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
     });
 
     child.stdout.on("data", (chunk: Buffer) => {
-      stdoutChunks.push(chunk);
+      if (options.collectStdout !== false) {
+        stdoutChunks.push(chunk);
+      }
       stdoutBytes += chunk.length;
       if (stdoutBytes > options.stdoutLimitBytes) {
         void finishReject(new ProcessExecutionError("Process stdout exceeded the configured limit", "output-limit"));
+      }
+      if (options.onStdoutChunk) {
+        options.onStdoutChunk(chunk);
       }
     });
 
@@ -149,7 +156,7 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
       resolve({
         exitCode,
         signal,
-        stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+        stdout: options.collectStdout !== false ? Buffer.concat(stdoutChunks).toString("utf8") : "",
         stderr: Buffer.concat(stderrChunks).toString("utf8"),
         durationMs: Date.now() - started
       });

@@ -5,6 +5,7 @@ import { buildGoEnvironment } from "../execution/environment";
 import { requireSuccessfulExit } from "../execution/processOutcome";
 import { runProcess } from "../execution/processRunner";
 import { parseGoListJson, type GoListModule } from "../parsers/goListJsonParser";
+import { GoListJsonStreamParser } from "../parsers/goListJsonStreamParser";
 import { classifyUpdate } from "../parsers/goVersionParser";
 
 export function buildGoListArgs(requirements: readonly GoModRequirement[] = []): readonly string[] {
@@ -46,6 +47,7 @@ export async function analyzeUpdates(input: {
   if (input.requirements.length === 0) {
     return [];
   }
+  const parser = new GoListJsonStreamParser();
   const result = await runProcess({
     executable: input.goExecutable,
     args: [...buildGoListArgs(input.requirements)],
@@ -54,9 +56,11 @@ export async function analyzeUpdates(input: {
     timeoutMs: input.timeoutMs,
     stdoutLimitBytes: 50 * 1024 * 1024,
     stderrLimitBytes: 5 * 1024 * 1024,
-    signal: input.signal
+    signal: input.signal,
+    collectStdout: false,
+    onStdoutChunk: (chunk) => parser.push(chunk)
   });
   requireSuccessfulExit(result, "go list");
-  const modules = parseGoListJson(result.stdout);
+  const modules = parser.finish();
   return analyzeUpdateOutput(input.requirements, modules);
 }

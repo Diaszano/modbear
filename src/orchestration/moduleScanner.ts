@@ -6,6 +6,7 @@ import { analyzeUpdates, buildGoListArgs } from "../analyzers/updateAnalyzer";
 import { analyzeVulnerabilities, VulnerabilityCoordinator } from "../analyzers/vulnerabilityAnalyzer";
 import { AnalysisCache } from "../cache/analysisCache";
 import { createCacheKey } from "../cache/cacheKey";
+import { getGoVersion } from "../execution/goToolIdentity";
 import { parseGoModPositions } from "../parsers/goModPositionParser";
 import type { Logger } from "../logging/logger";
 
@@ -30,7 +31,8 @@ export class ModuleScanner {
     const [goMod, goSum, goWork] = await Promise.all([
       readFile(module.goModPath, "utf8"),
       module.goSumPath ? readFile(module.goSumPath, "utf8").catch(() => "") : Promise.resolve(""),
-      module.goWorkPath ? readFile(module.goWorkPath, "utf8").catch(() => "") : Promise.resolve("")
+      module.goWorkPath ? readFile(module.goWorkPath, "utf8").catch(() => "") : Promise.resolve(""),
+      getGoVersion(this.goExecutable).catch(() => "")
     ]);
     const contentHash = createCacheKey({
       moduleRoot: module.moduleRoot,
