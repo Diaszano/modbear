@@ -1,3 +1,4 @@
+import { statSync } from "node:fs";
 import path from "node:path";
 
 export const PREPARE_UPDATE_COMMAND_ID = "modBear.prepareUpdateInTerminal";
@@ -55,13 +56,19 @@ export class TerminalUpdateManager {
 
   public prepare(input: unknown): void {
     const args = parsePrepareUpdateArgs(input);
+    assertAvailableModuleRoot(args.moduleRoot);
     let terminal = this.terminalsByRoot.get(args.moduleRoot);
     if (!terminal) {
       terminal = this.createTerminal({ name: "ModBear", cwd: args.moduleRoot });
       this.terminalsByRoot.set(args.moduleRoot, terminal);
     }
-    terminal.show();
-    terminal.sendText(buildGoGetSuggestion(args), false);
+    try {
+      terminal.show();
+      terminal.sendText(buildGoGetSuggestion(args), false);
+    } catch (error) {
+      this.forget(terminal);
+      throw error;
+    }
   }
 
   public forget(terminal: TerminalHandle): void {
@@ -73,4 +80,23 @@ export class TerminalUpdateManager {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function assertAvailableModuleRoot(moduleRoot: string): void {
+  try {
+    if (statSync(moduleRoot).isDirectory()) {
+      const goModPath = path.join(moduleRoot, "go.mod");
+      try {
+        if (statSync(goModPath).isFile()) return;
+      } catch {
+        // Report a consistent availability error below.
+      }
+      throw new Error(`Module root is unavailable: ${goModPath} must be a regular file.`);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Module root is unavailable:")) {
+      throw error;
+    }
+  }
+  throw new Error(`Module root is unavailable: ${moduleRoot} must be an existing directory.`);
 }

@@ -93,6 +93,54 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
     provider.dispose();
   });
 
+  test("does not add the terminal action in an untrusted workspace", async () => {
+    const originalIsTrusted = vscode.workspace.isTrusted;
+    const document = await vscode.workspace.openTextDocument({
+      language: "go.mod",
+      content: "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.9.1\n"
+    });
+    const module: ModuleContext = {
+      id: "/workspace/app",
+      moduleRoot: "/workspace/app",
+      goModPath: document.uri.fsPath
+    };
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: module.id,
+      contentHash: "fixture",
+      createdAt: new Date(0).toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: [{
+        modulePath: "github.com/gin-gonic/gin",
+        installedVersion: "v1.9.1",
+        availableVersion: "v1.10.1",
+        updateKind: "minor",
+        retractionRationales: [],
+        errors: []
+      }],
+      replacements: [],
+      errors: []
+    };
+    const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined);
+    Object.defineProperty(vscode.workspace, "isTrusted", {
+      configurable: true,
+      get: () => false
+    });
+
+    try {
+      const hints = provider.provideInlayHints(document);
+      assert.equal(hints.length, 1);
+      assert.equal(hints[0]?.label, "→ v1.10.1 · minor");
+    } finally {
+      provider.dispose();
+      Object.defineProperty(vscode.workspace, "isTrusted", {
+        configurable: true,
+        get: () => originalIsTrusted
+      });
+    }
+  });
+
   test("provides hover detail without markdown command execution risks", async () => {
     const document = await vscode.workspace.openTextDocument({
       language: "go.mod",

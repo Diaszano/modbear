@@ -17,8 +17,13 @@ ModBear enforces a strict read-only model. The extension **never** mutates modul
 - Subprocess invocations pass `GOFLAGS=-mod=readonly` to guarantee the Go toolchain will fail if any operation attempts file modification.
 - Automated repository verification checks run:
   ```bash
-  ! grep -R -nE 'go get|go mod tidy([^[:alnum:]-]|$)|go env -w|go install|shell:[[:space:]]*true' src --exclude-dir=test
+  ! grep -R -nE 'shell:[[:space:]]*true' src --include='*.ts' --exclude-dir=test
+  ! grep -R -nE 'go get|"go",[[:space:]]*"get"|go mod tidy([^[:alnum:]-]|$)|go env -w|go install' src --include='*.ts' --exclude-dir=test | grep -vF 'return ["go", "get", `${args.modulePath}@${args.version}`].join(" ");' | grep -vF 'markdown.appendCodeblock(`${["go", "get"].join(" ")} ${status.modulePath}@${status.availableVersion}`, "shell");' | grep -vF 'terminalPart.tooltip = "Prepare the suggested go get command in the terminal";'
+  test "$(grep -R -oE '\.sendText[[:space:]]*\(' src --include='*.ts' --exclude-dir=test | wc -l)" -eq 1
+  grep -nF 'terminal.sendText(buildGoGetSuggestion(args), false);' src/providers/terminalUpdateManager.ts
   ```
+- The three exact `go get` exclusions are inert suggestion construction, hover display, and tooltip text; any other production occurrence fails verification.
+- Production has exactly one terminal write, and the positive check requires its non-executing `false` argument. Omitting the second argument, passing `true`, or adding another production `sendText` call fails verification.
 - Terminal suggestions accept only validated Go module paths and versions without shell metacharacters or control characters.
 - Tests require every terminal suggestion to call `sendText(command, false)`.
 - Terminal preparation is blocked when VS Code reports an untrusted workspace.
