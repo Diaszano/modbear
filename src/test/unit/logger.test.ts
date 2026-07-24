@@ -3,36 +3,66 @@ import { createRequire } from "node:module";
 import test from "node:test";
 
 type ModuleLoader = (request: string, parent: NodeModule | undefined, isMain: boolean) => unknown;
+type LoggerConstructor = typeof import("../../logging/logger").Logger;
 
-test("Logger redacts raw caught errors before writing to the Output Channel", async () => {
-  const output: { errors: string[] } = { errors: [] };
-  const vscode = {
-    window: {
-      createOutputChannel: () => ({
-        debug: () => undefined,
-        info: () => undefined,
-        warn: () => undefined,
-        error: (message: string) => output.errors.push(message),
-        show: () => undefined,
-        dispose: () => undefined
-      })
-    }
-  };
+async function loadLogger(): Promise<LoggerConstructor> {
   const nodeRequire = createRequire(__filename);
   const moduleLoader = nodeRequire("node:module") as { _load: ModuleLoader };
   const originalLoad = moduleLoader._load;
   moduleLoader._load = function (request, parent, isMain) {
-    return request === "vscode" ? vscode : originalLoad.call(this, request, parent, isMain);
+    return request === "vscode"
+      ? { window: { createOutputChannel: () => { throw new Error("Unexpected output channel creation"); } } }
+      : originalLoad.call(this, request, parent, isMain);
   };
 
   try {
-    const { Logger } = await import("../../logging/logger.js");
-    new Logger().error("Scan failed: Error: https://token:super-secret@example.com/private/module");
+    return (await import("../../logging/logger.js")).Logger;
   } finally {
     moduleLoader._load = originalLoad;
   }
+}
 
-  assert.deepEqual(output.errors, [
-    "Scan failed: Error: https://***@example.com/private/module"
+function createChannelDouble() {
+  const messages = {
+    debug: [] as string[],
+    info: [] as string[],
+    warn: [] as string[],
+    error: [] as string[]
+  };
+
+  return {
+    messages,
+    channel: {
+      debug: (message: string) => messages.debug.push(message),
+      info: (message: string) => messages.info.push(message),
+      warn: (message: string) => messages.warn.push(message),
+      error: (message: string) => messages.error.push(message),
+      show: () => undefined,
+      dispose: () => undefined
+    }
+  };
+}
+
+test("does not emit debug events when configured at info level", async () => {
+  const output = createChannelDouble();
+  const Logger = await loadLogger();
+  const logger = new Logger(() => "info", () => output.channel);
+
+  logger.event("debug", "scan.command", { command: "go list" });
+
+  assert.deepEqual(output.messages.debug, []);
+});
+
+test("emits error events with redacted fields", async () => {
+  const output = createChannelDouble();
+  const Logger = await loadLogger();
+  const logger = new Logger(() => "info", () => output.channel);
+
+  logger.event("error", "scan.failed", {
+    detail: "go list cwd=/home/alice/private https://user:password@example.com/private/module token=abc123"
+  });
+
+  assert.deepEqual(output.messages.error, [
+    "scan.failed detail=go list cwd=[redacted-path] https://***@example.com/private/module token=***"
   ]);
 });

@@ -6,5 +6,6 @@ export const DEFAULTS = {
   updateTtlMinutes: 30,
   timeoutSeconds: 120,
   updateSeverity: "none" as const,
-  maxConcurrentModules: 2
+  maxConcurrentModules: 2,
+  logLevel: "info" as const
 };

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { DEFAULTS } from "./defaults";
+import type { LogLevel } from "../logging/logger";
 
 export interface ExtensionConfig {
   readonly enabled: boolean;
@@ -10,6 +11,7 @@ export interface ExtensionConfig {
   readonly timeoutSeconds: number;
   readonly updateSeverity: "none" | "information" | "warning";
   readonly maxConcurrentModules: number;
+  readonly logLevel: LogLevel;
 }
 
 export function readConfig(resource?: vscode.Uri): ExtensionConfig {
@@ -22,6 +24,7 @@ export function readConfig(resource?: vscode.Uri): ExtensionConfig {
     updateTtlMinutes: config.get("scan.updateTtlMinutes", DEFAULTS.updateTtlMinutes),
     timeoutSeconds: config.get("scan.timeoutSeconds", DEFAULTS.timeoutSeconds),
     updateSeverity: config.get("diagnostics.updateSeverity", DEFAULTS.updateSeverity),
-    maxConcurrentModules: config.get("scan.maxConcurrentModules", DEFAULTS.maxConcurrentModules)
+    maxConcurrentModules: config.get("scan.maxConcurrentModules", DEFAULTS.maxConcurrentModules),
+    logLevel: config.get<LogLevel>("output.logLevel", DEFAULTS.logLevel)
   };
 }

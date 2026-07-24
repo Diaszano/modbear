@@ -21,6 +21,7 @@ import { ModuleAnalysisSnapshot, getSnapshotMetrics } from "./domain/analysis";
 import type { ModuleContext } from "./domain/module";
 import { Logger } from "./logging/logger";
 import { resolveTool } from "./execution/toolResolver";
+import { ProcessExecutionError } from "./execution/processRunner";
 
 export { EXTENSION_ID };
 
@@ -31,7 +32,7 @@ async function requireTrustedWorkspace(): Promise<boolean> {
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  const output = new Logger();
+  const output = new Logger(() => readConfig().logLevel);
   const diagnosticManager = new DiagnosticManager();
   
   const cachePath = context.globalStorageUri.fsPath;
@@ -47,6 +48,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const resolveModule = (uri: vscode.Uri) => resolveActiveModule(uri.fsPath, modules);
   
   const getConfig = () => readConfig();
+
+  const logFailure = (name: string, error: unknown): void => {
+    if (error instanceof ProcessExecutionError) {
+      output.event("error", name, {
+        kind: error.kind,
+        ...(error.result?.stderr ? { stderr: error.result.stderr } : {})
+      });
+      return;
+    }
+    output.event("error", name, {
+      detail: error instanceof Error ? error.message : String(error)
+    });
+  };
   
   const requestScan = async (module: ModuleContext) => {
     const config = getConfig();
@@ -56,7 +70,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       goPath = await resolveTool(config.goPath, "go");
     } catch (err) {
       statusBarManager.markScanFinished(module.id);
-      vscode.window.showWarningMessage(`ModBear: Could not resolve go executable (${config.goPath}): ${err instanceof Error ? err.message : err}`);
+      logFailure("tool.resolve.failed", err);
+      vscode.window.showWarningMessage("ModBear: Could not resolve Go executable.");
       return;
     }
     const scanner = new ModuleScanner(cache, goPath, config.timeoutSeconds * 1000, config.updateTtlMinutes * 60000, output);
@@ -67,8 +82,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }).catch(err => {
       if (err instanceof Error && err.message === "Scan cancelled") {
         statusBarManager.markScanFinished(module.id);
+        return;
       }
-      output.error(`Scan failed for ${module.id}: ${err}`);
+      logFailure("scan.failed", err);
     });
   };
 
@@ -96,7 +112,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     discoverModules(roots, new AbortController().signal).then(m => {
       modules = m;
       statusBarManager.setModules(m);
-    });
+    }).catch(err => logFailure("discovery.failed", err));
   }
 
   coordinator.events.onSnapshot((snapshot) => {
@@ -131,7 +147,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
       
       diagnosticManager.set(doc.uri, diagnostics);
-    }, err => output.error(`Could not open document for diagnostics: ${err}`));
+    }, err => logFailure("diagnostics.open.failed", err));
   });
 
   let scanTimeout: NodeJS.Timeout | undefined;
@@ -160,16 +176,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       try {
         terminalUpdateManager.prepare(input);
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        output.error(`Could not prepare dependency update: ${message}`);
-        await vscode.window.showErrorMessage(`ModBear: Could not prepare update: ${message}`);
+        logFailure("update.prepare.failed", error);
+        await vscode.window.showErrorMessage("ModBear: Could not prepare update.");
       }
     }),
     vscode.commands.registerCommand("modBear.scanWorkspace", async () => {
       if (!(await requireTrustedWorkspace())) return;
       output.info("Manual scan triggered");
       const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
-      modules = await discoverModules(roots, new AbortController().signal);
+      try {
+        modules = await discoverModules(roots, new AbortController().signal);
+      } catch (error) {
+        logFailure("discovery.failed", error);
+        await vscode.window.showWarningMessage("ModBear: Could not discover Go modules.");
+        return;
+      }
       statusBarManager.setModules(modules);
       for (const module of modules) requestScan(module);
     }),
@@ -212,9 +233,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
               const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(module.goModPath));
               await vscode.window.showTextDocument(doc);
             } catch (err) {
-              const msg = err instanceof Error ? err.message : String(err);
-              output.error(`Failed to open module file ${module.goModPath}: ${msg}`);
-              vscode.window.showErrorMessage(`Could not open ${module.goModPath}: ${msg}`);
+              logFailure("module.open.failed", err);
+              vscode.window.showErrorMessage("ModBear: Could not open module file.");
             }
           }
         });
