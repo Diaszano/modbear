@@ -18,6 +18,19 @@ test("passes arguments without shell interpolation", async () => {
   assert.equal(result.stdout.trim(), "$(touch should-not-exist)");
 });
 
+test("captures a non-zero exit for the caller to classify", async () => {
+  const result = await runProcess({
+    executable: process.execPath,
+    args: [tool, "fail"],
+    cwd: process.cwd(),
+    timeoutMs: 2_000,
+    stdoutLimitBytes: 1024,
+    stderrLimitBytes: 1024
+  });
+  assert.equal(result.exitCode, 7);
+  assert.match(result.stderr, /password/);
+});
+
 test("times out and marks the result", async () => {
   await assert.rejects(
     runProcess({

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
-import { analyzeUpdateOutput } from "../../analyzers/updateAnalyzer";
+import { analyzeUpdateOutput, analyzeUpdates } from "../../analyzers/updateAnalyzer";
+import { ProcessExecutionError } from "../../execution/processRunner";
 
 const requirements = [{
   modulePath: "example.com/a",
@@ -71,7 +73,6 @@ test("builds targeted go list arguments when requirements are present", async ()
 });
 
 test("analyzeUpdates returns empty array immediately if requirements is empty", async () => {
-  const { analyzeUpdates } = await import("../../analyzers/updateAnalyzer.js");
   const result = await analyzeUpdates({
     module: {
       id: "dummy",
@@ -86,3 +87,27 @@ test("analyzeUpdates returns empty array immediately if requirements is empty", 
   assert.deepEqual(result, []);
 });
 
+test("rejects with a typed failure when go list exits non-zero", async () => {
+  await assert.rejects(
+    analyzeUpdates({
+      module: {
+        id: "dummy",
+        moduleRoot: process.cwd(),
+        goModPath: path.join(process.cwd(), "go.mod")
+      },
+      requirements,
+      goExecutable: path.resolve("src/test/fixtures/fake-tool.mjs"),
+      timeoutMs: 1_000,
+      signal: new AbortController().signal
+    }),
+    (err: unknown) => {
+      assert.ok(err instanceof ProcessExecutionError);
+      assert.equal(err.kind, "exit-nonzero");
+      assert.equal(
+        (err as ProcessExecutionError & { result?: { readonly exitCode: number | null } }).result?.exitCode,
+        7
+      );
+      return true;
+    }
+  );
+});

@@ -2,6 +2,7 @@ import type { DependencyStatus } from "../domain/analysis";
 import type { GoModRequirement } from "../domain/dependency";
 import type { ModuleContext } from "../domain/module";
 import { buildGoEnvironment } from "../execution/environment";
+import { requireSuccessfulExit } from "../execution/processOutcome";
 import { runProcess } from "../execution/processRunner";
 import { parseGoListJson, type GoListModule } from "../parsers/goListJsonParser";
 import { classifyUpdate } from "../parsers/goVersionParser";
@@ -55,6 +56,7 @@ export async function analyzeUpdates(input: {
     stderrLimitBytes: 5 * 1024 * 1024,
     signal: input.signal
   });
+  requireSuccessfulExit(result, "go list");
   const modules = parseGoListJson(result.stdout);
   return analyzeUpdateOutput(input.requirements, modules);
 }

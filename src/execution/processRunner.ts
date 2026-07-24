@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 
 export interface ProcessOptions {
   readonly executable: string;
@@ -22,11 +22,32 @@ export interface ProcessResult {
 export class ProcessExecutionError extends Error {
   public constructor(
     message: string,
-    public readonly kind: "spawn" | "timeout" | "cancelled" | "output-limit",
-    public readonly cause?: unknown
+    public readonly kind: "spawn" | "timeout" | "cancelled" | "output-limit" | "exit-nonzero",
+    public readonly cause?: unknown,
+    public readonly result?: ProcessResult
   ) {
     super(message);
     this.name = "ProcessExecutionError";
+  }
+}
+
+function terminateProcessTree(child: ChildProcess): void {
+  if (child.pid === undefined) return;
+
+  if (process.platform === "win32") {
+    const taskkill = spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+      shell: false,
+      windowsHide: true,
+      stdio: "ignore"
+    });
+    taskkill.on("error", () => undefined);
+    return;
+  }
+
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch (error: unknown) {
+    if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) return;
   }
 }
 
@@ -43,6 +64,7 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
       env: options.env,
       shell: false,
       windowsHide: true,
+      detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"]
     });
 
@@ -61,7 +83,7 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
       if (settled) return;
       settled = true;
       cleanup();
-      child.kill("SIGKILL");
+      terminateProcessTree(child);
       reject(error);
     };
 
