@@ -85,13 +85,15 @@ Expected: FAIL because current package and README claim vulnerability insights o
 
 Replace the package description with `Dependency updates and lifecycle insights for Go modules, directly inside VS Code.` Remove unimplemented `govulncheck` configuration names from `capabilities.untrustedWorkspaces.restrictedConfigurations`, remove vulnerability wording from README, architecture, security documentation, and the scanning status tooltip.
 
-Upgrade the direct test dependency and regenerate only the lockfile entries it changes:
+Upgrade the direct test dependency and add narrowly scoped development-only overrides for the vulnerable transitive packages. The stable Mocha release remains `11.7.6`; do not use the `12.0.0-rc.5` prerelease solely to satisfy the audit.
 
 ```bash
 npm install --save-dev mocha@latest
+npm pkg set 'overrides.diff=8.0.4' 'overrides.serialize-javascript=7.0.5'
+npm install --package-lock-only
 ```
 
-Do not run `npm audit fix --force`; it can change unrelated release tooling.
+Do not run `npm audit fix --force`; it can change unrelated release tooling. The overrides are acceptable only when the full test suite and full `npm audit` pass, proving the stable test runner remains compatible.
 
 - [ ] **Step 4: Verify the release surface and audit result**
 
