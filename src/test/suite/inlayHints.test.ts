@@ -42,8 +42,54 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
     assert.equal(hints.length, 1);
     assert.equal(hints[0]?.position.line, 2);
     assert.equal(hints[0]?.position.character, document.lineAt(2).text.length);
-    assert.match(String(hints[0]?.label), /v1\.10\.1/);
+    const label = hints[0]?.label;
+    assert.ok(Array.isArray(label));
+    assert.equal(label[0]?.value, "$(terminal)");
+    assert.equal(label[0]?.command?.command, "modBear.prepareUpdateInTerminal");
+    assert.deepEqual(label[0]?.command?.arguments, [{
+      moduleRoot: module.moduleRoot,
+      modulePath: "github.com/gin-gonic/gin",
+      version: "v1.10.1"
+    }]);
+    assert.equal(label[1]?.value, " → v1.10.1 · minor");
+    assert.equal(label[1]?.command, undefined);
     assert.equal(document.getText().includes("v1.10.1"), false);
+    provider.dispose();
+  });
+
+  test("does not add the terminal action without an available version", async () => {
+    const document = await vscode.workspace.openTextDocument({
+      language: "go.mod",
+      content: "module example.com/app\n\nrequire example.com/old v1.0.0\n"
+    });
+    const module: ModuleContext = {
+      id: "/workspace/app",
+      moduleRoot: "/workspace/app",
+      goModPath: document.uri.fsPath
+    };
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: module.id,
+      contentHash: "fixture",
+      createdAt: new Date(0).toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: [{
+        modulePath: "example.com/old",
+        installedVersion: "v1.0.0",
+        deprecatedMessage: "use example.com/new",
+        retractionRationales: [],
+        errors: []
+      }],
+      replacements: [],
+      errors: []
+    };
+    const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined);
+
+    const hints = provider.provideInlayHints(document);
+
+    assert.equal(hints.length, 1);
+    assert.equal(hints[0]?.label, "⚠ deprecated");
     provider.dispose();
   });
 

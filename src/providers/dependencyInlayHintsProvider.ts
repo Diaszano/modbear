@@ -3,6 +3,10 @@ import { parseGoModPositions } from "../parsers/goModPositionParser";
 import { buildInlayLabel } from "./inlayLabel";
 import type { ScanCoordinator } from "../orchestration/scanCoordinator";
 import type { ModuleContext } from "../domain/module";
+import {
+  PREPARE_UPDATE_COMMAND_ID,
+  type PrepareUpdateArgs
+} from "./terminalUpdateManager";
 
 export class DependencyInlayHintsProvider implements vscode.InlayHintsProvider {
   private readonly changeEmitter = new vscode.EventEmitter<void>();
@@ -41,13 +45,32 @@ export class DependencyInlayHintsProvider implements vscode.InlayHintsProvider {
       const label = status ? buildInlayLabel(status, showKind) : undefined;
       const finalLabel = label ?? (showUpToDate && status ? "✓ current" : undefined);
       if (!finalLabel) return [];
+      let hintLabel: string | vscode.InlayHintLabelPart[] = finalLabel;
+      if (status?.availableVersion && vscode.workspace.isTrusted) {
+        const actionArgs: PrepareUpdateArgs = {
+          moduleRoot: module.moduleRoot,
+          modulePath: requirement.modulePath,
+          version: status.availableVersion
+        };
+        const terminalPart = new vscode.InlayHintLabelPart("$(terminal)");
+        terminalPart.tooltip = "Prepare the suggested go get command in the terminal";
+        terminalPart.command = {
+          command: PREPARE_UPDATE_COMMAND_ID,
+          title: "Prepare Update in Terminal",
+          arguments: [actionArgs]
+        };
+        const informationPart = new vscode.InlayHintLabelPart(` ${finalLabel}`);
+        hintLabel = [terminalPart, informationPart];
+      }
       const hint = new vscode.InlayHint(
         new vscode.Position(requirement.versionRange.end.line, requirement.versionRange.end.character),
-        finalLabel,
+        hintLabel,
         vscode.InlayHintKind.Type
       );
       hint.paddingLeft = true;
-      hint.tooltip = new vscode.MarkdownString(`**${requirement.modulePath}**\n\nInstalled: \`${requirement.version}\`\n\n${finalLabel}`);
+      hint.tooltip = new vscode.MarkdownString(
+        `**${requirement.modulePath}**\n\nInstalled: \`${requirement.version}\`\n\n${finalLabel}`
+      );
       return [hint];
     });
   }
