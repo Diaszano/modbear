@@ -6,6 +6,8 @@ import type { ScanCoordinator } from "../../orchestration/scanCoordinator";
 import { DependencyInlayHintsProvider } from "../../providers/dependencyInlayHintsProvider";
 import { DependencyHoverProvider } from "../../providers/dependencyHoverProvider";
 
+const notRunVulnerabilities = { state: "not-run" as const, findings: [], errors: [] };
+
 suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
   test("places the available version immediately after the installed version", async () => {
     const document = await vscode.workspace.openTextDocument({
@@ -34,6 +36,7 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         }
       ],
       replacements: [],
+      vulnerabilities: notRunVulnerabilities,
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
@@ -81,6 +84,7 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         errors: []
       }],
       replacements: [],
+      vulnerabilities: notRunVulnerabilities,
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
@@ -119,6 +123,7 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         errors: []
       }],
       replacements: [],
+      vulnerabilities: notRunVulnerabilities,
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
@@ -168,6 +173,7 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         }
       ],
       replacements: [],
+      vulnerabilities: notRunVulnerabilities,
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;

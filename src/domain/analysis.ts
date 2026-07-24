@@ -1,4 +1,5 @@
 import type { UpdateKind } from "./dependency";
+import type { VulnerabilityAnalysis } from "./vulnerability";
 import { ProcessExecutionError } from "../execution/processRunner";
 
 export type AnalysisErrorCode =
@@ -50,6 +51,7 @@ export interface ModuleAnalysisSnapshot {
   readonly updateState: AnalyzerState;
   readonly dependencies: readonly DependencyStatus[];
   readonly replacements: readonly ReplacementStatus[];
+  readonly vulnerabilities: VulnerabilityAnalysis;
   readonly errors: readonly AnalysisError[];
 }
 
@@ -102,5 +104,4 @@ export function getSnapshotMetrics(snapshot: ModuleAnalysisSnapshot): SnapshotMe
   }
   return { updates, warnings };
 }
-
 

@@ -4,6 +4,8 @@ import { classifyAnalysisError, getSnapshotMetrics } from "../../domain/analysis
 import type { ModuleAnalysisSnapshot } from "../../domain/analysis";
 import { ProcessExecutionError } from "../../execution/processRunner";
 
+const notRunVulnerabilities = { state: "not-run" as const, findings: [], errors: [] };
+
 test("getSnapshotMetrics counts updates and warnings accurately", () => {
   const snapshot: ModuleAnalysisSnapshot = {
     moduleId: "mod-1",
@@ -35,6 +37,7 @@ test("getSnapshotMetrics counts updates and warnings accurately", () => {
       }
     ],
     replacements: [],
+    vulnerabilities: notRunVulnerabilities,
     errors: []
   };
 

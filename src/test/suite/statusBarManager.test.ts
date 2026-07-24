@@ -5,6 +5,8 @@ import type { ModuleContext } from "../../domain/module";
 import type { ScanCoordinator } from "../../orchestration/scanCoordinator";
 import { StatusBarManager } from "../../providers/statusBarManager";
 
+const notRunVulnerabilities = { state: "not-run" as const, findings: [], errors: [] };
+
 function getTooltipText(tooltip: string | vscode.MarkdownString | undefined): string {
   if (!tooltip) return "";
   if (typeof tooltip === "string") return tooltip;
@@ -67,6 +69,7 @@ suite("StatusBarManager Test Suite", () => {
       updateState: "failed",
       dependencies: [],
       replacements: [],
+      vulnerabilities: notRunVulnerabilities,
       errors: []
     };
 
@@ -106,6 +109,7 @@ suite("StatusBarManager Test Suite", () => {
         }
       ],
       replacements: [],
+      vulnerabilities: notRunVulnerabilities,
       errors: []
     };
 
@@ -138,6 +142,7 @@ suite("StatusBarManager Test Suite", () => {
         }
       ],
       replacements: [],
+      vulnerabilities: notRunVulnerabilities,
       errors: []
     };
 

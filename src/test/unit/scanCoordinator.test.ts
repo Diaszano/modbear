@@ -8,6 +8,8 @@ import { AnalysisCache } from "../../cache/analysisCache";
 import type { ModuleAnalysisSnapshot } from "../../domain/analysis";
 import type { ModuleContext } from "../../domain/module";
 
+const notRunVulnerabilities = { state: "not-run" as const, findings: [], errors: [] };
+
 const dummyModule: ModuleContext = {
   id: "mod-1",
   moduleRoot: "/path/to/mod",
@@ -22,6 +24,7 @@ const mockSnapshot: ModuleAnalysisSnapshot = {
   updateState: "complete",
   dependencies: [],
   replacements: [],
+  vulnerabilities: notRunVulnerabilities,
   errors: []
 };
 

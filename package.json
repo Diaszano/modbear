@@ -35,7 +35,8 @@
       "supported": "limited",
       "description": "%workspaceTrust.description%",
       "restrictedConfigurations": [
-        "modBear.go.path"
+        "modBear.go.path",
+        "modBear.govulncheck.path"
       ]
     },
     "virtualWorkspaces": {
@@ -82,6 +83,11 @@
           "default": "go",
           "scope": "window"
         },
+        "modBear.govulncheck.path": {
+          "type": "string",
+          "default": "govulncheck",
+          "scope": "window"
+        },
         "modBear.scan.onOpen": {
           "type": "boolean",
           "default": true
@@ -107,6 +113,16 @@
           "default": 120,
           "minimum": 5,
           "maximum": 900
+        },
+        "modBear.vulnerability.enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "modBear.vulnerability.timeoutSeconds": {
+          "type": "number",
+          "default": 600,
+          "minimum": 30,
+          "maximum": 1800
         },
         "modBear.inlayHints.enabled": {
           "type": "boolean",

@@ -22,6 +22,7 @@ import type { ModuleContext } from "./domain/module";
 import { Logger } from "./logging/logger";
 import { resolveTool } from "./execution/toolResolver";
 import { ProcessExecutionError } from "./execution/processRunner";
+import { VulnerabilityCoordinator } from "./analyzers/vulnerabilityAnalyzer";
 
 export { EXTENSION_ID };
 
@@ -48,6 +49,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const resolveModule = (uri: vscode.Uri) => resolveActiveModule(uri.fsPath, modules);
   
   const getConfig = () => readConfig();
+  let vulnerabilityCoordinator: VulnerabilityCoordinator | undefined;
 
   const logFailure = (name: string, error: unknown): void => {
     if (error instanceof ProcessExecutionError) {
@@ -63,6 +65,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   };
   
   const requestScan = async (module: ModuleContext) => {
+    if (!vscode.workspace.isTrusted) return;
     const config = getConfig();
     let goPath = config.goPath;
     statusBarManager.markScanStarted(module.id);
@@ -74,7 +77,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       vscode.window.showWarningMessage("ModBear: Could not resolve Go executable.");
       return;
     }
-    const scanner = new ModuleScanner(cache, goPath, config.timeoutSeconds * 1000, config.updateTtlMinutes * 60000, output);
+    const vulnerability = config.vulnerabilityEnabled
+      ? {
+          enabled: true,
+          govulncheckPath: config.govulncheckPath,
+          timeoutMs: config.vulnerabilityTimeoutSeconds * 1000,
+          coordinator: vulnerabilityCoordinator ??= new VulnerabilityCoordinator()
+        }
+      : undefined;
+    const scanner = new ModuleScanner(
+      cache,
+      goPath,
+      config.timeoutSeconds * 1000,
+      config.updateTtlMinutes * 60000,
+      output,
+      vulnerability
+    );
     coordinator.scanModule({
       module,
       contentHash: "",

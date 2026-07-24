@@ -5,6 +5,9 @@ export const DEFAULTS = {
   onSave: true,
   updateTtlMinutes: 30,
   timeoutSeconds: 120,
+  govulncheckPath: "govulncheck",
+  vulnerabilityEnabled: true,
+  vulnerabilityTimeoutSeconds: 600,
   updateSeverity: "none" as const,
   maxConcurrentModules: 2,
   logLevel: "info" as const
