@@ -156,6 +156,27 @@ test("retains the last successful snapshot as stale when refresh fails", async (
   assert.equal(snapshot.errors[0]?.code, "network");
 });
 
+test("keeps an initial failed snapshot failed when the next scan also fails", async () => {
+  const coordinator = new ScanCoordinator();
+
+  await assert.rejects(coordinator.scanModule({
+    module: dummyModule,
+    contentHash: "first-failure",
+    run: async () => { throw new Error("first failure"); }
+  }));
+  await assert.rejects(coordinator.scanModule({
+    module: dummyModule,
+    contentHash: "second-failure",
+    run: async () => { throw new Error("second failure"); }
+  }));
+
+  const snapshot = coordinator.getSnapshot(dummyModule.id)!;
+  assert.equal(snapshot.stale, false);
+  assert.equal(snapshot.updateState, "failed");
+  assert.equal(snapshot.contentHash, "second-failure");
+  assert.deepEqual(snapshot.dependencies, []);
+});
+
 test("AnalysisCache stores and retrieves snapshots from disk", async () => {
   const tmpDir = await mkdtemp(path.join(os.tmpdir(), "modbear-test-cache-"));
   try {

@@ -61,7 +61,8 @@ export class ScanCoordinator {
           throw err;
         }
         const previous = this.snapshots.get(request.module.id);
-        const snapshot: ModuleAnalysisSnapshot = previous
+        const hasPreviousResults = previous?.updateState === "complete" || previous?.updateState === "partial";
+        const snapshot: ModuleAnalysisSnapshot = hasPreviousResults
           ? Object.freeze({
               ...previous,
               contentHash: request.contentHash,
