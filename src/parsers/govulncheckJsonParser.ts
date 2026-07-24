@@ -10,6 +10,47 @@ import type {
 
 type JsonRecord = Readonly<Record<string, unknown>>;
 
+class ImmutableMap<K, V> implements ReadonlyMap<K, V> {
+  readonly #entries: Map<K, V>;
+
+  constructor(entries: ReadonlyMap<K, V>) {
+    this.#entries = new Map(entries);
+    Object.freeze(this);
+  }
+
+  get size(): number {
+    return this.#entries.size;
+  }
+
+  get(key: K): V | undefined {
+    return this.#entries.get(key);
+  }
+
+  has(key: K): boolean {
+    return this.#entries.has(key);
+  }
+
+  forEach(callbackfn: (value: V, key: K, map: ReadonlyMap<K, V>) => void, thisArg?: unknown): void {
+    this.#entries.forEach((value, key) => callbackfn.call(thisArg, value, key, this));
+  }
+
+  entries(): IterableIterator<[K, V]> {
+    return this.#entries.entries();
+  }
+
+  keys(): IterableIterator<K> {
+    return this.#entries.keys();
+  }
+
+  values(): IterableIterator<V> {
+    return this.#entries.values();
+  }
+
+  [Symbol.iterator](): IterableIterator<[K, V]> {
+    return this.entries();
+  }
+}
+
 export function parseGovulncheckStream(input: string): GovulncheckStream {
   let config: GovulncheckConfig | undefined;
   const advisories = new Map<string, GovulncheckAdvisory>();
@@ -55,7 +96,7 @@ export function parseGovulncheckStream(input: string): GovulncheckStream {
   if (config === undefined) throw new Error("govulncheck stream must contain exactly one config");
   return Object.freeze({
     config,
-    advisories,
+    advisories: new ImmutableMap(advisories),
     findings: Object.freeze(findings),
     progress: Object.freeze(progress)
   });

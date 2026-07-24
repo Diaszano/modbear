@@ -49,6 +49,16 @@ test("parses protocol v1 config, advisories, findings, and progress", () => {
   }]);
 });
 
+test("exposes advisories through an immutable runtime map", () => {
+  const stream = parseGovulncheckStream(fixture("symbol-stream.jsonl"));
+  const advisories = stream.advisories as unknown as Map<string, unknown>;
+
+  assert.throws(() => advisories.set("GO-2026-9999", { id: "GO-2026-9999" }), TypeError);
+  assert.throws(() => advisories.delete("GO-2026-0001"), TypeError);
+  assert.equal(stream.advisories.size, 1);
+  assert.ok(stream.advisories.has("GO-2026-0001"));
+});
+
 test("retains known protocol fields and ignores future fields", () => {
   const stream = parseGovulncheckStream(fixture("unknown-fields.jsonl"));
 
