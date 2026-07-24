@@ -287,4 +287,50 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
     assert.ok(markdown.value.includes("Some critical vulnerability details"));
     assert.ok(markdown.value.includes("Fixed in: `v1.10.0`"));
   });
+
+  test("returns empty inlay hints when modBear.enabled is false", async () => {
+    const config = vscode.workspace.getConfiguration("modBear");
+    const originalEnabled = config.get("enabled");
+    await config.update("enabled", false, vscode.ConfigurationTarget.Global);
+
+    try {
+      const document = await vscode.workspace.openTextDocument({
+        language: "go.mod",
+        content: "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.9.1\n"
+      });
+      const module: ModuleContext = {
+        id: "/workspace/app",
+        moduleRoot: "/workspace/app",
+        goModPath: document.uri.fsPath
+      };
+      const snapshot: ModuleAnalysisSnapshot = {
+        moduleId: module.id,
+        contentHash: "fixture",
+        createdAt: new Date(0).toISOString(),
+        stale: false,
+        updateState: "complete",
+        dependencies: [
+          {
+            modulePath: "github.com/gin-gonic/gin",
+            installedVersion: "v1.9.1",
+            availableVersion: "v1.10.1",
+            updateKind: "minor",
+            retractionRationales: [],
+            errors: []
+          }
+        ],
+        replacements: [],
+        vulnerabilities: notRunVulnerabilities,
+        errors: []
+      };
+      const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+      const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined);
+
+      const hints = provider.provideInlayHints(document);
+      assert.equal(hints.length, 0, "No inlay hints should be returned when extension is disabled");
+      provider.dispose();
+    } finally {
+      await config.update("enabled", originalEnabled, vscode.ConfigurationTarget.Global);
+    }
+  });
 });

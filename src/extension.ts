@@ -11,7 +11,7 @@ import {
   PREPARE_UPDATE_COMMAND_ID,
   TerminalUpdateManager
 } from "./providers/terminalUpdateManager";
-import { discoverModules } from "./discovery/moduleDiscovery";
+import { discoverModules, type ModuleDiscoveryResult } from "./discovery/moduleDiscovery";
 import { resolveActiveModule } from "./discovery/activeModuleResolver";
 import { readConfig } from "./config/config";
 import { mapUpdateDiagnostics } from "./diagnostics/updateDiagnosticMapper";
@@ -65,10 +65,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       detail: error instanceof Error ? error.message : String(error)
     });
   };
+
+  const logWarning = (name: string, error: unknown): void => {
+    output.event("warn", name, {
+      detail: error instanceof Error ? error.message : String(error)
+    });
+  };
   
   const requestScan = async (module: ModuleContext) => {
     if (!vscode.workspace.isTrusted) return;
     const config = getConfig();
+    if (!config.enabled) return;
     let goPath = config.goPath;
     statusBarManager.markScanStarted(module.id);
     try {
@@ -127,12 +134,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.languages.registerInlayHintsProvider(documentSelector, inlayProvider)
   );
 
+  const handleDiscoveryResult = (result: ModuleDiscoveryResult) => {
+    modules = result.modules;
+    statusBarManager.setModules(result.modules);
+    for (const err of result.errors) {
+      logWarning("discovery.warning", err);
+    }
+    inlayProvider.refresh();
+  };
+
   if (vscode.workspace.isTrusted) {
     const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
-    discoverModules(roots, new AbortController().signal).then(m => {
-      modules = m;
-      statusBarManager.setModules(m);
-    }).catch(err => logFailure("discovery.failed", err));
+    discoverModules(roots, new AbortController().signal)
+      .then(handleDiscoveryResult)
+      .catch(err => logFailure("discovery.failed", err));
   }
 
   coordinator.events.onSnapshot((snapshot) => {
@@ -172,19 +187,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }, err => logFailure("diagnostics.open.failed", err));
   });
 
-  let scanTimeout: NodeJS.Timeout | undefined;
+  const scheduler = new ScanScheduler(requestScan);
+  activeScheduler = scheduler;
+  context.subscriptions.push(scheduler);
+
   const triggerScan = (doc: vscode.TextDocument, isSave: boolean) => {
     if (!doc.fileName.endsWith("go.mod")) return;
-    const config = readConfig(doc.uri);
-    if (isSave && !config.onSave) return;
-    if (!isSave && !config.onOpen) return;
     if (!vscode.workspace.isTrusted) return;
     
     const module = resolveModule(doc.uri);
     if (!module) return;
     
-    if (scanTimeout) clearTimeout(scanTimeout);
-    scanTimeout = setTimeout(() => requestScan(module), 500);
+    const config = readConfig(doc.uri);
+    scheduler.triggerScan(module, isSave, config);
   };
 
   context.subscriptions.push(
@@ -207,14 +222,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!(await requireTrustedWorkspace())) return;
       output.info("Manual scan triggered");
       const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
+      let result: ModuleDiscoveryResult;
       try {
-        modules = await discoverModules(roots, new AbortController().signal);
+        result = await discoverModules(roots, new AbortController().signal);
       } catch (error) {
         logFailure("discovery.failed", error);
         await vscode.window.showWarningMessage("ModBear: Could not discover Go modules.");
         return;
       }
-      statusBarManager.setModules(modules);
+      handleDiscoveryResult(result);
       for (const module of modules) requestScan(module);
     }),
     vscode.commands.registerCommand("modBear.copySuggestion", async (suggestion: string) => {
@@ -277,4 +293,54 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   output.info(`${EXTENSION_ID} activated; trusted=${vscode.workspace.isTrusted}`);
 }
 
-export function deactivate(): void {}
+let activeScheduler: ScanScheduler | undefined;
+
+export function deactivate(): void {
+  if (activeScheduler) {
+    activeScheduler.dispose();
+    activeScheduler = undefined;
+  }
+}
+
+export interface ScanSchedulerConfig {
+  readonly enabled: boolean;
+  readonly onSave: boolean;
+  readonly onOpen: boolean;
+}
+
+export class ScanScheduler implements vscode.Disposable {
+  private readonly scanTimeouts = new Map<string, NodeJS.Timeout>();
+
+  public constructor(
+    private readonly requestScan: (module: ModuleContext) => void
+  ) {}
+
+  public triggerScan(
+    module: ModuleContext,
+    isSave: boolean,
+    config: ScanSchedulerConfig
+  ): void {
+    if (!config.enabled) return;
+    if (isSave && !config.onSave) return;
+    if (!isSave && !config.onOpen) return;
+
+    const existing = this.scanTimeouts.get(module.id);
+    if (existing) {
+      clearTimeout(existing);
+    }
+
+    const timer = setTimeout(() => {
+      this.scanTimeouts.delete(module.id);
+      this.requestScan(module);
+    }, 500);
+
+    this.scanTimeouts.set(module.id, timer);
+  }
+
+  public dispose(): void {
+    for (const timer of this.scanTimeouts.values()) {
+      clearTimeout(timer);
+    }
+    this.scanTimeouts.clear();
+  }
+}

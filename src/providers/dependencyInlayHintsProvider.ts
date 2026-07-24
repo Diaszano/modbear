@@ -23,6 +23,9 @@ export class DependencyInlayHintsProvider implements vscode.InlayHintsProvider {
   }
 
   public provideInlayHints(document: vscode.TextDocument): vscode.InlayHint[] {
+    const config = vscode.workspace.getConfiguration("modBear", document.uri);
+    if (!config.get("enabled", true)) return [];
+
     const module = this.resolveModule(document.uri);
     if (!module) return [];
     const snapshot = this.coordinator.getSnapshot(module.id);
@@ -33,7 +36,6 @@ export class DependencyInlayHintsProvider implements vscode.InlayHintsProvider {
 
     const parsed = parseGoModPositions(document.getText());
     const byPath = new Map(snapshot.dependencies.map((status) => [status.modulePath, status]));
-    const config = vscode.workspace.getConfiguration("modBear", document.uri);
     if (!config.get("inlayHints.enabled", true)) return [];
     const showIndirect = config.get("inlayHints.showIndirect", true);
     const showUpToDate = config.get("inlayHints.showUpToDate", false);
