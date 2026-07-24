@@ -1,9 +1,25 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { runProcess, ProcessExecutionError } from "../../execution/processRunner";
 
 const tool = path.resolve("src/test/fixtures/fake-tool.mjs");
+
+async function waitForProcessExit(pid: number): Promise<boolean> {
+  const deadline = Date.now() + 1_000;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(pid, 0);
+    } catch (error: unknown) {
+      if (error instanceof Error && "code" in error && error.code === "ESRCH") return true;
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  return false;
+}
 
 test("passes arguments without shell interpolation", async () => {
   const result = await runProcess({
@@ -49,6 +65,39 @@ test("times out and marks the result", async () => {
       return false;
     }
   );
+});
+
+test("timeout terminates a spawned grandchild on POSIX", { skip: process.platform === "win32" }, async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "modbear-process-runner-"));
+  const pidFile = path.join(tempDir, "grandchild.pid");
+  let grandchildPid: number | undefined;
+
+  try {
+    await assert.rejects(
+      runProcess({
+        executable: process.execPath,
+        args: [tool, "spawn-grandchild", pidFile],
+        cwd: process.cwd(),
+        timeoutMs: 1_000,
+        stdoutLimitBytes: 1024,
+        stderrLimitBytes: 1024
+      }),
+      (err: unknown) => err instanceof ProcessExecutionError && err.kind === "timeout"
+    );
+
+    grandchildPid = Number(await readFile(pidFile, "utf8"));
+    assert.ok(Number.isSafeInteger(grandchildPid) && grandchildPid > 0);
+    assert.equal(await waitForProcessExit(grandchildPid), true, "grandchild remained running after timeout");
+  } finally {
+    if (grandchildPid !== undefined) {
+      try {
+        process.kill(grandchildPid, "SIGKILL");
+      } catch {
+        // The test assertion expects the process to have already exited.
+      }
+    }
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("cancels execution when AbortSignal is aborted", async () => {
