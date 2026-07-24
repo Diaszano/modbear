@@ -134,10 +134,26 @@ test("ScanCoordinator stores and emits fallback failed snapshot on non-abort err
   assert.ok(snapshot);
   assert.equal(snapshot.updateState, "failed");
   assert.equal(snapshot.errors.length, 1);
-  assert.equal(snapshot.errors[0]?.message, "go list command failed");
+  assert.equal(snapshot.errors[0]?.code, "unknown");
+  assert.equal(snapshot.errors[0]?.message, "Dependency analysis failed.");
 
   assert.equal(emitted.length, 1);
   assert.equal(emitted[0]?.updateState, "failed");
+});
+
+test("retains the last successful snapshot as stale when refresh fails", async () => {
+  const coordinator = new ScanCoordinator();
+  await coordinator.scanModule({ module: dummyModule, contentHash: "ok", run: async () => mockSnapshot });
+  await assert.rejects(coordinator.scanModule({
+    module: dummyModule,
+    contentHash: "new",
+    run: async () => { throw new Error("network unavailable"); }
+  }));
+  const snapshot = coordinator.getSnapshot(dummyModule.id)!;
+  assert.equal(snapshot.stale, true);
+  assert.equal(snapshot.updateState, "partial");
+  assert.deepEqual(snapshot.dependencies, mockSnapshot.dependencies);
+  assert.equal(snapshot.errors[0]?.code, "network");
 });
 
 test("AnalysisCache stores and retrieves snapshots from disk", async () => {

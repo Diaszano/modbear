@@ -102,6 +102,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   coordinator.events.onSnapshot((snapshot) => {
     statusBarManager.markScanFinished(snapshot.moduleId);
     inlayProvider.refresh();
+
+    if (snapshot.updateState === "failed") {
+      void vscode.window.showWarningMessage("ModBear: Dependency scan failed. See the output for details.");
+    }
     
     const module = modules.find(m => m.id === snapshot.moduleId);
     if (!module) return;

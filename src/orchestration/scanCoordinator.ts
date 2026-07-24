@@ -1,4 +1,4 @@
-import type { ModuleAnalysisSnapshot } from "../domain/analysis";
+import { classifyAnalysisError, type ModuleAnalysisSnapshot } from "../domain/analysis";
 import type { ModuleContext } from "../domain/module";
 import { ScanEvents } from "./scanEvents";
 
@@ -60,24 +60,28 @@ export class ScanCoordinator {
         if (controller.signal.aborted) {
           throw err;
         }
-        const errorDetail = err instanceof Error ? err.message : String(err);
-        const failedSnapshot: ModuleAnalysisSnapshot = Object.freeze({
-          moduleId: request.module.id,
-          contentHash: request.contentHash,
-          createdAt: new Date().toISOString(),
-          stale: false,
-          updateState: "failed",
-          dependencies: [],
-          replacements: [],
-          errors: [
-            {
-              code: "unknown" as const,
-              message: errorDetail
-            }
-          ]
-        });
-        this.snapshots.set(request.module.id, failedSnapshot);
-        this.events.emitSnapshot(failedSnapshot);
+        const previous = this.snapshots.get(request.module.id);
+        const snapshot: ModuleAnalysisSnapshot = previous
+          ? Object.freeze({
+              ...previous,
+              contentHash: request.contentHash,
+              createdAt: new Date().toISOString(),
+              stale: true,
+              updateState: "partial",
+              errors: [{ code: classifyAnalysisError(err), message: "Dependency refresh failed." }]
+            })
+          : Object.freeze({
+              moduleId: request.module.id,
+              contentHash: request.contentHash,
+              createdAt: new Date().toISOString(),
+              stale: false,
+              updateState: "failed",
+              dependencies: [],
+              replacements: [],
+              errors: [{ code: classifyAnalysisError(err), message: "Dependency analysis failed." }]
+            });
+        this.snapshots.set(request.module.id, snapshot);
+        this.events.emitSnapshot(snapshot);
         throw err;
       }
 

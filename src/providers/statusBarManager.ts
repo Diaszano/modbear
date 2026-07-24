@@ -47,6 +47,7 @@ export class StatusBarManager implements vscode.Disposable {
     let totalUpdates = 0;
     let totalWarnings = 0;
     let hasErrors = false;
+    let hasStaleResults = false;
 
     for (const module of this.modules) {
       const snapshot = this.coordinator.getSnapshot(module.id);
@@ -54,6 +55,9 @@ export class StatusBarManager implements vscode.Disposable {
 
       if (snapshot.updateState === "failed") {
         hasErrors = true;
+      }
+      if (snapshot.stale || snapshot.updateState === "partial") {
+        hasStaleResults = true;
       }
 
       const { updates, warnings } = getSnapshotMetrics(snapshot);
@@ -64,6 +68,11 @@ export class StatusBarManager implements vscode.Disposable {
     if (hasErrors) {
       this.statusBarItem.text = "$(error) ModBear: Failed";
       const tooltip = new vscode.MarkdownString("Some module scans failed. Click to open logs.", true);
+      tooltip.isTrusted = true;
+      this.statusBarItem.tooltip = tooltip;
+    } else if (hasStaleResults) {
+      this.statusBarItem.text = "$(warning) ModBear: Results may be stale";
+      const tooltip = new vscode.MarkdownString("Dependency refresh failed; displaying the last successful results. Click to open logs.", true);
       tooltip.isTrusted = true;
       this.statusBarItem.tooltip = tooltip;
     } else if (totalUpdates > 0 || totalWarnings > 0) {
