@@ -36,7 +36,7 @@ export class ModuleScanner {
 
     const parsed = parseGoModPositions(goMod);
     if (this.logger) {
-      this.logger.command(this.goExecutable, buildGoListArgs(), module.moduleRoot);
+      this.logger.command(this.goExecutable, buildGoListArgs(parsed.requirements), module.moduleRoot);
     }
     const [rawDependencies, replacements] = await Promise.all([
       analyzeUpdates({
