@@ -40,7 +40,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   
   const cachePath = context.globalStorageUri.fsPath;
   const cache = new AnalysisCache(cachePath);
-  const coordinator = new ScanCoordinator(() => getConfig().maxConcurrentModules);
+  const coordinator = new ScanCoordinator(() => getConfig().maxConcurrentModules, output);
   const statusBarManager = new StatusBarManager(coordinator);
   const terminalUpdateManager = new TerminalUpdateManager(
     (options) => vscode.window.createTerminal(options)
@@ -111,7 +111,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         statusBarManager.markScanFinished(module.id);
         return;
       }
-      logFailure("scan.failed", err);
+      // Failure is already logged by ModuleScanner.scan
     });
   };
 

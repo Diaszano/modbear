@@ -1,6 +1,7 @@
 import { classifyAnalysisError, type ModuleAnalysisSnapshot } from "../domain/analysis";
 import type { ModuleContext } from "../domain/module";
 import { ScanEvents } from "./scanEvents";
+import type { Logger } from "../logging/logger";
 
 export interface ModuleScanRequest {
   readonly module: ModuleContext;
@@ -16,7 +17,10 @@ export class ScanCoordinator {
   private readonly queue: Array<{ request: ModuleScanRequest; resolve: (snap: ModuleAnalysisSnapshot) => void; reject: (err: any) => void }> = [];
   private activeCount = 0;
 
-  public constructor(private readonly getMaxConcurrentModules: () => number = () => 2) {}
+  public constructor(
+    private readonly getMaxConcurrentModules: () => number = () => 2,
+    private readonly logger?: Logger
+  ) {}
 
   public getSnapshot(moduleId: string): ModuleAnalysisSnapshot | undefined {
     return this.snapshots.get(moduleId);
@@ -29,6 +33,7 @@ export class ScanCoordinator {
     if (existingIndex !== -1) {
       const existing = this.queue.splice(existingIndex, 1)[0];
       existing?.reject(new Error("Scan cancelled"));
+      this.logger?.event("debug", "scan.cancelled", {});
     }
 
     return new Promise((resolve, reject) => {
@@ -58,6 +63,7 @@ export class ScanCoordinator {
         snapshot = Object.freeze(await request.run(controller.signal));
       } catch (err) {
         if (controller.signal.aborted) {
+          this.logger?.event("debug", "scan.cancelled", {});
           throw err;
         }
         const previous = this.snapshots.get(request.module.id);
@@ -87,7 +93,10 @@ export class ScanCoordinator {
         throw err;
       }
 
-      if (controller.signal.aborted) throw new Error("Scan cancelled");
+      if (controller.signal.aborted) {
+        this.logger?.event("debug", "scan.cancelled", {});
+        throw new Error("Scan cancelled");
+      }
       this.snapshots.set(request.module.id, snapshot);
       this.events.emitSnapshot(snapshot);
       return snapshot;
@@ -97,7 +106,10 @@ export class ScanCoordinator {
   }
 
   public dispose(): void {
-    for (const item of this.queue) item.reject(new Error("Scan cancelled"));
+    for (const item of this.queue) {
+      item.reject(new Error("Scan cancelled"));
+      this.logger?.event("debug", "scan.cancelled", {});
+    }
     this.queue.length = 0;
     for (const controller of this.running.values()) controller.abort();
     this.running.clear();

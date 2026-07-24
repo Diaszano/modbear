@@ -83,3 +83,35 @@ test("emits error events with redacted fields", async () => {
     "scan.failed detail=go list cwd=[redacted-path] https://***@example.com/private/module token=***"
   ]);
 });
+
+test("emits scan lifecycle events correctly formatted and redacted", async () => {
+  const output = createChannelDouble();
+  const Logger = await loadLogger();
+  const logger = new Logger(() => "info", () => output.channel);
+
+  logger.event("info", "scan.started", {
+    kind: "updates",
+    cache: "miss"
+  });
+
+  logger.event("info", "scan.finished", {
+    outcome: "success",
+    durationMs: 150,
+    cache: "miss",
+    dependencies: 12
+  });
+
+  logger.event("info", "scan.failed", {
+    kind: "exit-nonzero",
+    durationMs: 250,
+    exitCode: 7,
+    stderr: "error reading directory"
+  });
+
+  const messages = output.messages.info;
+
+  assert.match(messages[0]!, /^scan\.started kind=updates cache=(hit|miss)$/);
+  assert.match(messages[1]!, /^scan\.finished outcome=success durationMs=\d+ cache=(hit|miss) dependencies=\d+$/);
+  assert.match(messages[2]!, /^scan\.failed kind=exit-nonzero durationMs=\d+ exitCode=7 stderr=/);
+  assert.doesNotMatch(messages.join("\\n"), /\/home\/|example\.com\/private|password/);
+});

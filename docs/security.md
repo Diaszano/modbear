@@ -58,3 +58,11 @@ To ensure testing integrity and guarantee that extension tests do not cause disk
 
 - **Fixture Hash Invariant**: Test fixtures under `src/test/fixtures/` must remain bit-for-bit identical before and after test execution.
 - Integration tests verify SHA-256 checksums of `go.mod`, `go.sum`, and `go.work` fixture files to confirm zero on-disk mutations occur during scanner runs or test suite execution.
+
+## 6. Privacy & Telemetry-Free Logging
+
+ModBear enforces a strict privacy policy:
+- **Zero Remote Telemetry**: The extension contains no telemetry, telemetry libraries, analytics collection, or remote tracking. No data is ever transmitted to external endpoints.
+- **Local Logging**: Log events (such as `scan.started`, `scan.finished`, `scan.failed`, and `scan.cancelled`) are only recorded locally to the VS Code Output Channel.
+- **Verbosity Enforcement**: Logging is strictly gated by the `modBear.output.logLevel` configuration.
+- **Aggregated / Redacted Fields**: Emitted lifecycle logs contain only redacted or aggregated metadata (e.g. durations, dependency counts, cache states). Private identifiers (such as raw paths, passwords, and private module paths) are filtered out prior to logging.

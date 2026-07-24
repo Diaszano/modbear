@@ -53,6 +53,13 @@ ModBear relies exclusively on your standard local Go environment (`GOPRIVATE`, `
 - ModBear does **not** make direct HTTP network requests or bypass standard Go proxy rules.
 - `go list -u -m -json all` is invoked via your local `go` binary, maintaining your existing proxy, mirror, and private registry authentication configurations.
 
+## Privacy and Local Logging
+
+- **No Telemetry**: ModBear is completely telemetry-free. It does not collect, report, or transmit any data, analytics, or crash reports to external servers.
+- **Local Logging**: Extension activity is recorded locally and written only to the VS Code Output Channel ("ModBear").
+- **Configurable Verbosity**: Logging is controlled by the `modBear.output.logLevel` setting, allowing you to filter or disable output as needed.
+- **Data Redaction**: Log events redact sensitive information (such as user home directory paths, passwords, and private proxy headers) before writing to the output channel.
+
 ## Commands
 
 ModBear contributes the following commands (accessible via the Command Palette `Ctrl+Shift+P` / `Cmd+Shift+P`):
