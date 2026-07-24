@@ -14,8 +14,13 @@ export interface ExtensionConfig {
   readonly logLevel: LogLevel;
 }
 
+function isLogLevel(value: unknown): value is LogLevel {
+  return value === "error" || value === "warn" || value === "info" || value === "debug";
+}
+
 export function readConfig(resource?: vscode.Uri): ExtensionConfig {
   const config = vscode.workspace.getConfiguration("modBear", resource);
+  const configuredLogLevel = config.get<unknown>("output.logLevel", DEFAULTS.logLevel);
   return {
     enabled: config.get("enabled", DEFAULTS.enabled),
     goPath: config.get("go.path", DEFAULTS.goPath),
@@ -25,6 +30,6 @@ export function readConfig(resource?: vscode.Uri): ExtensionConfig {
     timeoutSeconds: config.get("scan.timeoutSeconds", DEFAULTS.timeoutSeconds),
     updateSeverity: config.get("diagnostics.updateSeverity", DEFAULTS.updateSeverity),
     maxConcurrentModules: config.get("scan.maxConcurrentModules", DEFAULTS.maxConcurrentModules),
-    logLevel: config.get<LogLevel>("output.logLevel", DEFAULTS.logLevel)
+    logLevel: isLogLevel(configuredLogLevel) ? configuredLogLevel : DEFAULTS.logLevel
   };
 }

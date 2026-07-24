@@ -50,6 +50,13 @@ test("redacts credentials, absolute paths, and secret values in arbitrary log te
   assert.match(result, /\[redacted-path\].*https:\/\/\*\*\*@proxy\.test.*token=\*\*\*/);
 });
 
+test("redacts authorization schemes and credentials completely", () => {
+  const result = redactLogText("request failed Authorization: Bearer top-secret-token");
+
+  assert.equal(result, "request failed Authorization: ***");
+  assert.doesNotMatch(result, /Bearer|top-secret-token/);
+});
+
 test("resolveTool uses fallback when configured is empty", async () => {
   const tool = await resolveTool(undefined, "go");
   assert.equal(tool, "go");

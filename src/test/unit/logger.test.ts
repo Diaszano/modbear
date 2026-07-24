@@ -53,6 +53,23 @@ test("does not emit debug events when configured at info level", async () => {
   assert.deepEqual(output.messages.debug, []);
 });
 
+test("emits exactly the configured logger threshold matrix", async () => {
+  const Logger = await loadLogger();
+  const levels = ["error", "warn", "info", "debug"] as const;
+
+  for (const threshold of levels) {
+    const output = createChannelDouble();
+    const logger = new Logger(() => threshold, () => output.channel);
+
+    for (const level of levels) logger.event(level, `${threshold}.${level}`, {});
+
+    for (const level of levels) {
+      const expected = levels.indexOf(level) <= levels.indexOf(threshold) ? [`${threshold}.${level}`] : [];
+      assert.deepEqual(output.messages[level], expected, `${threshold} should ${expected.length ? "emit" : "suppress"} ${level}`);
+    }
+  }
+});
+
 test("emits error events with redacted fields", async () => {
   const output = createChannelDouble();
   const Logger = await loadLogger();
