@@ -39,15 +39,50 @@ test("builds the immutable go list argument contract", async () => {
   );
 });
 
-test("analyzeUpdates short-circuits to empty array when requirements are empty", async () => {
+test("builds targeted go list arguments when requirements are present", async () => {
+  const { buildGoListArgs } = await import("../../analyzers/updateAnalyzer.js");
+  const testRequirements = [
+    {
+      modulePath: "example.com/a",
+      version: "v1.0.0",
+      indirect: false,
+      line: 0,
+      moduleRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 13 } },
+      versionRange: { start: { line: 0, character: 14 }, end: { line: 0, character: 20 } }
+    },
+    {
+      modulePath: "example.com/b",
+      version: "v2.0.0",
+      indirect: true,
+      line: 1,
+      moduleRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 13 } },
+      versionRange: { start: { line: 1, character: 14 }, end: { line: 1, character: 20 } }
+    }
+  ];
+  assert.deepEqual(buildGoListArgs(testRequirements), [
+    "list",
+    "-m",
+    "-u",
+    "-json",
+    "-mod=readonly",
+    "example.com/a",
+    "example.com/b"
+  ]);
+});
+
+test("analyzeUpdates returns empty array immediately if requirements is empty", async () => {
   const { analyzeUpdates } = await import("../../analyzers/updateAnalyzer.js");
-  const controller = new AbortController();
   const result = await analyzeUpdates({
-    module: { id: "test", moduleRoot: "/fake", goModPath: "/fake/go.mod" },
+    module: {
+      id: "dummy",
+      moduleRoot: "/dummy",
+      goModPath: "/dummy/go.mod"
+    },
     requirements: [],
-    goExecutable: "invalid-go-executable-path",
-    timeoutMs: 5000,
-    signal: controller.signal
+    goExecutable: "invalid-executable-that-would-fail",
+    timeoutMs: 1000,
+    signal: new AbortController().signal
   });
   assert.deepEqual(result, []);
 });
+
