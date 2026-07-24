@@ -5,6 +5,7 @@ import type { ModuleContext } from "../../domain/module";
 import type { ScanCoordinator } from "../../orchestration/scanCoordinator";
 import { DependencyInlayHintsProvider } from "../../providers/dependencyInlayHintsProvider";
 import { DependencyHoverProvider } from "../../providers/dependencyHoverProvider";
+import { GoModDocumentCache } from "../../parsers/goModDocumentCache";
 
 const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
 
@@ -40,7 +41,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
-    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined);
+    const cache = new GoModDocumentCache();
+    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined, cache);
     const hints = provider.provideInlayHints(document);
     assert.equal(hints.length, 1);
     assert.equal(hints[0]?.position.line, 2);
@@ -88,7 +90,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
-    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined);
+    const cache = new GoModDocumentCache();
+    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined, cache);
 
     const hints = provider.provideInlayHints(document);
 
@@ -127,7 +130,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
-    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined);
+    const cache = new GoModDocumentCache();
+    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined, cache);
     Object.defineProperty(vscode.workspace, "isTrusted", {
       configurable: true,
       get: () => false
@@ -177,7 +181,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
-    const hoverProvider = new DependencyHoverProvider(coordinator, () => module);
+    const cache = new GoModDocumentCache();
+    const hoverProvider = new DependencyHoverProvider(coordinator, () => module, cache);
 
     const versionIndex = document.lineAt(2).text.indexOf("v1.9.1");
     const hover = hoverProvider.provideHover(document, new vscode.Position(2, versionIndex + 1));
@@ -223,7 +228,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
-    const hoverProvider = new DependencyHoverProvider(coordinator, () => module);
+    const cache = new GoModDocumentCache();
+    const hoverProvider = new DependencyHoverProvider(coordinator, () => module, cache);
 
     const versionIndex = document.lineAt(2).text.indexOf("v1.9.1");
     const hover = hoverProvider.provideHover(document, new vscode.Position(2, versionIndex + 1));
@@ -276,7 +282,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
-    const hoverProvider = new DependencyHoverProvider(coordinator, () => module);
+    const cache = new GoModDocumentCache();
+    const hoverProvider = new DependencyHoverProvider(coordinator, () => module, cache);
 
     const versionIndex = document.lineAt(2).text.indexOf("v1.9.1");
     const hover = hoverProvider.provideHover(document, new vscode.Position(2, versionIndex + 1));
@@ -324,7 +331,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         errors: []
       };
       const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
-      const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined);
+      const cache = new GoModDocumentCache();
+      const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined, cache);
 
       const hints = provider.provideInlayHints(document);
       assert.equal(hints.length, 0, "No inlay hints should be returned when extension is disabled");
@@ -332,5 +340,68 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
     } finally {
       await config.update("enabled", originalEnabled, vscode.ConfigurationTarget.Global);
     }
+  });
+
+  test("uses O(N) map lookup complexity rather than O(N^2) scan", async () => {
+    const document = await vscode.workspace.openTextDocument({
+      language: "go.mod",
+      content: [
+        "module example.com/app",
+        "",
+        ...Array.from({ length: 100 }, (_, i) => `require example.com/mod-${i} v1.0.${i}`)
+      ].join("\n")
+    });
+
+    const module: ModuleContext = {
+      id: "/workspace/app",
+      moduleRoot: "/workspace/app",
+      goModPath: document.uri.fsPath
+    };
+
+    let findCalls = 0;
+    let mapCalls = 0;
+
+    const rawDeps = Array.from({ length: 100 }, (_, i) => ({
+      modulePath: `example.com/mod-${i}`,
+      installedVersion: `v1.0.${i}`,
+      availableVersion: `v1.0.${i + 1}`,
+      updateKind: "minor" as const,
+      retractionRationales: [],
+      errors: []
+    }));
+
+    const dependenciesProxy = new Proxy(rawDeps, {
+      get(target, prop, receiver) {
+        if (prop === "find") {
+          findCalls++;
+        }
+        if (prop === "map") {
+          mapCalls++;
+        }
+        return Reflect.get(target, prop, receiver);
+      }
+    });
+
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: module.id,
+      contentHash: "fixture",
+      createdAt: new Date(0).toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: dependenciesProxy,
+      replacements: [],
+      vulnerabilities: notRunVulnerabilities,
+      errors: []
+    };
+
+    const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+    const cache = new GoModDocumentCache();
+    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined, cache);
+
+    const hints = provider.provideInlayHints(document);
+    assert.equal(hints.length, 100);
+    assert.equal(findCalls, 0, "Should not use .find in a loop");
+    assert.equal(mapCalls, 1, "Should construct Map exactly once");
+    provider.dispose();
   });
 });

@@ -1,19 +1,20 @@
 import * as vscode from "vscode";
-import { parseGoModPositions } from "../parsers/goModPositionParser";
+import { GoModDocumentCache } from "../parsers/goModDocumentCache";
 import type { ScanCoordinator } from "../orchestration/scanCoordinator";
 import type { ModuleContext } from "../domain/module";
 
 export class DependencyHoverProvider implements vscode.HoverProvider {
   public constructor(
     private readonly coordinator: ScanCoordinator,
-    private readonly resolveModule: (uri: vscode.Uri) => ModuleContext | undefined
+    private readonly resolveModule: (uri: vscode.Uri) => ModuleContext | undefined,
+    private readonly cache: GoModDocumentCache
   ) {}
 
   public provideHover(document: vscode.TextDocument, position: vscode.Position): vscode.Hover | undefined {
     const module = this.resolveModule(document.uri);
     const snapshot = module ? this.coordinator.getSnapshot(module.id) : undefined;
     if (!snapshot) return undefined;
-    const requirement = parseGoModPositions(document.getText()).requirements.find(
+    const requirement = this.cache.get(document).requirements.find(
       (item) =>
         item.line === position.line &&
         position.character >= item.versionRange.start.character &&

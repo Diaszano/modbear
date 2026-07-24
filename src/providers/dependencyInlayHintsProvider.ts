@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { parseGoModPositions } from "../parsers/goModPositionParser";
+import { GoModDocumentCache } from "../parsers/goModDocumentCache";
 import { buildInlayLabel } from "./inlayLabel";
 import type { ScanCoordinator } from "../orchestration/scanCoordinator";
 import type { ModuleContext } from "../domain/module";
@@ -15,7 +15,8 @@ export class DependencyInlayHintsProvider implements vscode.InlayHintsProvider {
   public constructor(
     private readonly coordinator: ScanCoordinator,
     private readonly resolveModule: (uri: vscode.Uri) => ModuleContext | undefined,
-    private readonly requestScan: (module: ModuleContext) => void
+    private readonly requestScan: (module: ModuleContext) => void,
+    private readonly cache: GoModDocumentCache
   ) {}
 
   public refresh(): void {
@@ -34,7 +35,7 @@ export class DependencyInlayHintsProvider implements vscode.InlayHintsProvider {
       return [];
     }
 
-    const parsed = parseGoModPositions(document.getText());
+    const parsed = this.cache.get(document);
     const byPath = new Map(snapshot.dependencies.map((status) => [status.modulePath, status]));
     if (!config.get("inlayHints.enabled", true)) return [];
     const showIndirect = config.get("inlayHints.showIndirect", true);

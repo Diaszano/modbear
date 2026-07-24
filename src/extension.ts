@@ -16,7 +16,7 @@ import { resolveActiveModule } from "./discovery/activeModuleResolver";
 import { readConfig } from "./config/config";
 import { mapUpdateDiagnostics } from "./diagnostics/updateDiagnosticMapper";
 import { mapReplacementDiagnostics } from "./diagnostics/replacementDiagnosticMapper";
-import { parseGoModPositions } from "./parsers/goModPositionParser";
+import { GoModDocumentCache } from "./parsers/goModDocumentCache";
 import { ModuleAnalysisSnapshot, getSnapshotMetrics } from "./domain/analysis";
 import type { ModuleContext } from "./domain/module";
 import { Logger } from "./logging/logger";
@@ -115,8 +115,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     });
   };
 
-  const hoverProvider = new DependencyHoverProvider(coordinator, resolveModule);
-  const inlayProvider = new DependencyInlayHintsProvider(coordinator, resolveModule, requestScan);
+  const documentCache = new GoModDocumentCache();
+
+  const hoverProvider = new DependencyHoverProvider(coordinator, resolveModule, documentCache);
+  const inlayProvider = new DependencyInlayHintsProvider(coordinator, resolveModule, requestScan, documentCache);
 
   context.subscriptions.push(
     output,
@@ -124,6 +126,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     coordinator,
     inlayProvider,
     statusBarManager,
+    documentCache,
+    vscode.workspace.onDidCloseTextDocument((doc) => documentCache.delete(doc.uri)),
     vscode.window.onDidCloseTerminal((terminal) => terminalUpdateManager.forget(terminal))
   );
 
@@ -157,18 +161,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (snapshot.updateState === "failed") {
       void vscode.window.showWarningMessage("ModBear: Dependency scan failed. See the output for details.");
     }
-    
     const module = modules.find(m => m.id === snapshot.moduleId);
     if (!module) return;
     
     const uri = vscode.Uri.file(module.goModPath);
     vscode.workspace.openTextDocument(uri).then(doc => {
-      const parsed = parseGoModPositions(doc.getText());
+      const parsed = documentCache.get(doc);
       const diagnostics: vscode.Diagnostic[] = [];
       const config = readConfig(doc.uri);
       
+      const dependenciesByPath = new Map(snapshot.dependencies.map(status => [status.modulePath, status]));
       for (const req of parsed.requirements) {
-        const status = snapshot.dependencies.find(d => d.modulePath === req.modulePath);
+        const status = dependenciesByPath.get(req.modulePath);
         if (status) {
           diagnostics.push(...mapUpdateDiagnostics(req, status, config.updateSeverity));
         }
