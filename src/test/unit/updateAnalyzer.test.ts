@@ -33,4 +33,21 @@ test("maps update, deprecation, and retraction fields", () => {
 test("builds the immutable go list argument contract", async () => {
   const { buildGoListArgs } = await import("../../analyzers/updateAnalyzer.js");
   assert.deepEqual(buildGoListArgs(), ["list", "-m", "-u", "-json", "-mod=readonly", "all"]);
+  assert.deepEqual(
+    buildGoListArgs(requirements),
+    ["list", "-m", "-u", "-json", "-mod=readonly", "example.com/a"]
+  );
+});
+
+test("analyzeUpdates short-circuits to empty array when requirements are empty", async () => {
+  const { analyzeUpdates } = await import("../../analyzers/updateAnalyzer.js");
+  const controller = new AbortController();
+  const result = await analyzeUpdates({
+    module: { id: "test", moduleRoot: "/fake", goModPath: "/fake/go.mod" },
+    requirements: [],
+    goExecutable: "invalid-go-executable-path",
+    timeoutMs: 5000,
+    signal: controller.signal
+  });
+  assert.deepEqual(result, []);
 });

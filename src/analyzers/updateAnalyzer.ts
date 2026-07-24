@@ -6,7 +6,10 @@ import { runProcess } from "../execution/processRunner";
 import { parseGoListJson, type GoListModule } from "../parsers/goListJsonParser";
 import { classifyUpdate } from "../parsers/goVersionParser";
 
-export function buildGoListArgs(): readonly string[] {
+export function buildGoListArgs(requirements: readonly GoModRequirement[] = []): readonly string[] {
+  if (requirements.length > 0) {
+    return ["list", "-m", "-u", "-json", "-mod=readonly", ...requirements.map((r) => r.modulePath)];
+  }
   return ["list", "-m", "-u", "-json", "-mod=readonly", "all"];
 }
 
@@ -39,9 +42,12 @@ export async function analyzeUpdates(input: {
   readonly timeoutMs: number;
   readonly signal: AbortSignal;
 }): Promise<readonly DependencyStatus[]> {
+  if (input.requirements.length === 0) {
+    return [];
+  }
   const result = await runProcess({
     executable: input.goExecutable,
-    args: [...buildGoListArgs()],
+    args: [...buildGoListArgs(input.requirements)],
     cwd: input.module.moduleRoot,
     env: buildGoEnvironment(),
     timeoutMs: input.timeoutMs,
