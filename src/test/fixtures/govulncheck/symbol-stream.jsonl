@@ -1,0 +1,4 @@
+{"config":{"protocol_version":"v1.0.0","scanner_name":"govulncheck","scanner_version":"v1.1.4","db":"https://vuln.go.dev","db_last_modified":"2026-07-24T12:00:00Z","go_version":"go1.24.0","scan_level":"symbol","scan_mode":"source"}}
+{"progress":{"time":"2026-07-24T12:01:00Z","message":"Scanning packages..."}}
+{"osv":{"id":"GO-2026-0001","summary":"Unsafe request parsing","details":"A vulnerable request parser can panic.","aliases":["CVE-2026-0001"],"published":"2026-07-01T00:00:00Z","modified":"2026-07-02T00:00:00Z"}}
+{"finding":{"osv":"GO-2026-0001","fixed_version":"v1.2.3","trace":[{"module":"example.com/vulnerable","version":"v1.2.2","package":"example.com/vulnerable/http","function":"Parse","position":{"filename":"/workspace/main.go","line":42,"column":7}},{"module":"example.com/app","version":"v0.0.0","package":"example.com/app","function":"main"}]}}
