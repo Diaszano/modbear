@@ -88,26 +88,36 @@ test("analyzeUpdates returns empty array immediately if requirements is empty", 
 });
 
 test("rejects with a typed failure when go list exits non-zero", async () => {
-  await assert.rejects(
-    analyzeUpdates({
-      module: {
-        id: "dummy",
-        moduleRoot: process.cwd(),
-        goModPath: path.join(process.cwd(), "go.mod")
-      },
-      requirements,
-      goExecutable: path.resolve("src/test/fixtures/fake-tool.mjs"),
-      timeoutMs: 1_000,
-      signal: new AbortController().signal
-    }),
-    (err: unknown) => {
-      assert.ok(err instanceof ProcessExecutionError);
-      assert.equal(err.kind, "exit-nonzero");
-      assert.equal(
-        (err as ProcessExecutionError & { result?: { readonly exitCode: number | null } }).result?.exitCode,
-        7
-      );
-      return true;
-    }
-  );
+  const previousNodeOptions = process.env.NODE_OPTIONS;
+  process.env.NODE_OPTIONS = [
+    previousNodeOptions,
+    `--require ${path.resolve("src/test/fixtures/fake-go-failure.cjs")}`
+  ].filter(Boolean).join(" ");
+  try {
+    await assert.rejects(
+      analyzeUpdates({
+        module: {
+          id: "dummy",
+          moduleRoot: process.cwd(),
+          goModPath: path.join(process.cwd(), "go.mod")
+        },
+        requirements,
+        goExecutable: process.execPath,
+        timeoutMs: 1_000,
+        signal: new AbortController().signal
+      }),
+      (err: unknown) => {
+        assert.ok(err instanceof ProcessExecutionError);
+        assert.equal(err.kind, "exit-nonzero");
+        assert.equal(
+          (err as ProcessExecutionError & { result?: { readonly exitCode: number | null } }).result?.exitCode,
+          7
+        );
+        return true;
+      }
+    );
+  } finally {
+    if (previousNodeOptions === undefined) delete process.env.NODE_OPTIONS;
+    else process.env.NODE_OPTIONS = previousNodeOptions;
+  }
 });

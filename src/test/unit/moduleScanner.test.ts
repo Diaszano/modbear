@@ -7,7 +7,7 @@ import { ModuleScanner } from "../../orchestration/moduleScanner";
 import { AnalysisCache } from "../../cache/analysisCache";
 import type { Logger } from "../../logging/logger";
 
-test("ModuleScanner passes requirements to buildGoListArgs when logging command", async () => {
+test("ModuleScanner logs targeted go list arguments before a process failure", async () => {
   const tmpDir = await mkdtemp(path.join(os.tmpdir(), "modbear-test-scanner-"));
   try {
     const goModPath = path.join(tmpDir, "go.mod");
@@ -21,7 +21,7 @@ test("ModuleScanner passes requirements to buildGoListArgs when logging command"
       }
     } as unknown as Logger;
 
-    const scanner = new ModuleScanner(cache, "go", 5000, 60000, mockLogger);
+    const scanner = new ModuleScanner(cache, "missing-go-for-logging-test", 5000, 60000, mockLogger);
     const moduleContext = {
       id: "test-module",
       moduleRoot: tmpDir,
@@ -29,11 +29,11 @@ test("ModuleScanner passes requirements to buildGoListArgs when logging command"
     };
 
     const controller = new AbortController();
-    await scanner.scan(moduleContext, controller.signal);
+    await assert.rejects(scanner.scan(moduleContext, controller.signal));
 
     assert.equal(loggedCommands.length, 1);
     const cmd = loggedCommands[0]!;
-    assert.equal(cmd.executable, "go");
+    assert.equal(cmd.executable, "missing-go-for-logging-test");
     assert.deepEqual(cmd.args, ["list", "-m", "-u", "-json", "-mod=readonly", "example.com/foo"]);
     assert.equal(cmd.cwd, tmpDir);
   } finally {
