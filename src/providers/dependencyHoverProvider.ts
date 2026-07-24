@@ -33,6 +33,31 @@ export class DependencyHoverProvider implements vscode.HoverProvider {
       markdown.appendMarkdown(`**Deprecated:** ${escapeMarkdown(status.deprecatedMessage)}\n\n`);
     for (const rationale of status.retractionRationales)
       markdown.appendMarkdown(`**Retracted:** ${escapeMarkdown(rationale)}\n\n`);
+
+    if (snapshot.vulnerabilities.state === "unavailable") {
+      markdown.appendMarkdown(`Vulnerability analysis unavailable\n\n`);
+    } else if (snapshot.vulnerabilities.state === "complete") {
+      const findings = snapshot.vulnerabilities.findings.filter((finding) =>
+        finding.trace.some((frame) => frame.module === requirement.modulePath)
+      );
+      if (findings.length > 0) {
+        markdown.appendMarkdown(`### Vulnerabilities\n\n`);
+        for (const finding of findings) {
+          const advisory = snapshot.vulnerabilities.advisories[finding.osvId];
+          const title = advisory?.summary
+            ? `**${finding.osvId}**: ${escapeMarkdown(advisory.summary)}`
+            : `**${finding.osvId}**`;
+          markdown.appendMarkdown(`- ${title} (classification: \`${finding.classification}\`)\n`);
+          if (advisory?.details) {
+            markdown.appendMarkdown(`  ${escapeMarkdown(advisory.details)}\n\n`);
+          }
+          if (finding.fixedVersion) {
+            markdown.appendMarkdown(`  Fixed in: \`${finding.fixedVersion}\`\n\n`);
+          }
+        }
+      }
+    }
+
     if (status.availableVersion) markdown.appendCodeblock(`${["go", "get"].join(" ")} ${status.modulePath}@${status.availableVersion}`, "shell");
     markdown.appendMarkdown("Suggested commands are not executed by this extension.");
     return new vscode.Hover(markdown);

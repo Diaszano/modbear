@@ -24,6 +24,8 @@ import { resolveTool } from "./execution/toolResolver";
 import { ProcessExecutionError } from "./execution/processRunner";
 import { VulnerabilityCoordinator } from "./analyzers/vulnerabilityAnalyzer";
 
+import { mapVulnerabilityDiagnostics } from "./diagnostics/vulnerabilityDiagnosticMapper";
+
 export { EXTENSION_ID };
 
 async function requireTrustedWorkspace(): Promise<boolean> {
@@ -164,6 +166,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }
       }
       
+      diagnostics.push(...mapVulnerabilityDiagnostics(parsed.requirements, snapshot.vulnerabilities));
+      
       diagnosticManager.set(doc.uri, diagnostics);
     }, err => logFailure("diagnostics.open.failed", err));
   });
@@ -195,7 +199,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         terminalUpdateManager.prepare(input);
       } catch (error) {
         logFailure("update.prepare.failed", error);
-        await vscode.window.showErrorMessage("ModBear: Could not prepare update.");
+        const suffix = error instanceof Error ? `: ${error.message}` : "";
+        await vscode.window.showErrorMessage(`ModBear: Could not prepare update${suffix}`);
       }
     }),
     vscode.commands.registerCommand("modBear.scanWorkspace", async () => {

@@ -53,25 +53,31 @@ ModBear is built as an event-driven, decoupled VS Code extension. It provides av
 - Implements strict execution timeout safeguards (`modBear.scan.timeoutSeconds`).
 - Injects `GOFLAGS=-mod=readonly` to ensure Go toolchain operations never mutate `go.mod` or `go.sum`.
 
-### 4. Analysis Cache (`src/cache/analysisCache.ts`)
+### 4. Vulnerability Analyzer (`src/analyzers/vulnerabilityAnalyzer.ts`)
+- Executes `govulncheck -format json -scan symbol ./...` shell-free.
+- Parses vulnerability findings and classifies trace paths as `reachable`, `imported`, or `module-only`.
+- Surfaces findings to diagnostics via `vulnerabilityDiagnosticMapper.ts` and shows detailed advisories on hover cards.
+- Restricts parallel scans via `VulnerabilityCoordinator` to bound CPU utilization.
+
+### 5. Analysis Cache (`src/cache/analysisCache.ts`)
 - Provides two-tier caching (memory + global storage disk).
 - Computes deterministic cache keys using module paths, `go.mod` content hashes, and settings.
 - Bypasses subprocess execution when valid snapshots exist within `modBear.scan.updateTtlMinutes`.
 
-### 5. `go.mod` Position Parser (`src/parsers/goModPositionParser.ts`)
+### 6. `go.mod` Position Parser (`src/parsers/goModPositionParser.ts`)
 - Parses requirement lines (`require (...)`), direct/indirect flags, and replace directives (`replace (...)`).
 - Determines exact character offsets and line ranges for placing inlay hints and diagnostics accurately.
 
-### 6. UI Providers (`src/providers/` & `src/diagnostics/`)
+### 7. UI Providers (`src/providers/` & `src/diagnostics/`)
 - **`DependencyInlayHintsProvider`**: Renders non-intrusive inlay hints (`→ v1.2.3 · minor`, `⚠ deprecated`, `⚠ retracted`) at line end positions without altering source text.
-- **`DependencyHoverProvider`**: Provides Markdown hover details showing installed versions, available updates, deprecation warnings, retraction rationales, and copyable update commands.
-- **`DiagnosticManager`**: Publishes VS Code diagnostics to the Problems pane for deprecated or retracted dependencies.
+- **`DependencyHoverProvider`**: Provides Markdown hover details showing installed versions, available updates, deprecation warnings, retraction rationales, suggested update commands, and active vulnerability advisories (or unavailable alerts).
+- **`DiagnosticManager`**: Publishes VS Code diagnostics to the Problems pane for deprecated, retracted, or vulnerable dependencies.
 
 ## Data Flow
 
 1. **Trigger**: User opens or saves a `go.mod` file, or invokes `modBear.scanWorkspace`.
 2. **Trust Guard**: Verifies `vscode.workspace.isTrusted`. If untrusted, execution aborts safely.
 3. **Cache Lookup**: `ScanCoordinator` checks `AnalysisCache`. If cached snapshot is valid, UI updates immediately.
-4. **Subprocess Execution**: If uncached or stale, `ModuleScanner` spawns `go list -u -m -json all` with `GOFLAGS=-mod=readonly`.
-5. **Parse & Map**: Output JSON stream is parsed, updates are classified (patch, minor, major), and snapshot is saved.
-6. **UI Refresh**: `ScanCoordinator` fires snapshot events, causing `InlayHintsProvider` and `DiagnosticManager` to update editor overlays.
+4. **Subprocess Execution**: If uncached or stale, `ModuleScanner` spawns `go list` and `govulncheck` in parallel with `GOFLAGS=-mod=readonly` (concurrency for vulnerability scans is restricted globally).
+5. **Parse & Map**: Output JSON streams are parsed, updates are classified, vulnerability findings are aggregated and classified (or marked unavailable), and snapshot is saved.
+6. **UI Refresh**: `ScanCoordinator` fires snapshot events, causing `InlayHintsProvider`, `HoverProvider` and `DiagnosticManager` to update editor overlays and publish problems.

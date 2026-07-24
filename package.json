@@ -1,7 +1,7 @@
 {
   "name": "modbear",
   "displayName": "ModBear",
-  "description": "Dependency updates and lifecycle insights for Go modules, directly inside VS Code.",
+  "description": "Dependency health and vulnerability insights for Go modules, directly inside VS Code.",
   "version": "1.2.0",
   "publisher": "diaszano",
   "icon": "resources/modbear.png",
@@ -23,6 +23,7 @@
     "golang",
     "dependencies",
     "security",
+    "govulncheck",
     "go.mod"
   ],
   "activationEvents": [

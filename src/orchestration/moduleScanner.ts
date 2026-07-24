@@ -81,7 +81,7 @@ export class ModuleScanner {
   private async analyzeVulnerabilities(moduleRoot: string, signal: AbortSignal) {
     const vulnerability = this.vulnerability;
     if (!vulnerability?.enabled) {
-      return { state: "not-run" as const, findings: [], errors: [] };
+      return { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
     }
     return vulnerability.coordinator.run(() => analyzeVulnerabilities({
       moduleRoot,

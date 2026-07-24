@@ -47,9 +47,10 @@ Log outputs (sent to VS Code Output Channels or diagnostic logs) are sanitized t
 
 ModBear strictly adheres to VS Code Workspace Trust specifications:
 
-- **Restricted Mode in Untrusted Workspaces**: If a workspace is untrusted (`vscode.workspace.isTrusted === false`), all subprocess execution is completely disabled.
+- **Restricted Mode in Untrusted Workspaces**: If a workspace is untrusted (`vscode.workspace.isTrusted === false`), all subprocess execution (including `go` and `govulncheck`) is completely disabled.
 - **No Background Operations**: In untrusted workspaces, background scans, auto-discovery, and toolchain invocations are prevented.
-- **Restricted Configuration Settings**: The Go executable path configuration (`modBear.go.path`) is marked with `"scope": "window"` and restricted capabilities so untrusted workspaces cannot redirect execution to malicious binaries.
+- **Restricted Configuration Settings**: The Go and govulncheck executable path configurations (`modBear.go.path`, `modBear.govulncheck.path`) are marked with `"scope": "window"` and restricted capabilities so untrusted workspaces cannot redirect execution to malicious binaries.
+- **Vulnerability Advisory Safety**: All vulnerability advisory text displayed in hover cards is escaped using the Markdown escaping function, and the hover webview forces `MarkdownString.isTrusted = false` to mitigate command injection risks.
 
 ## 5. Test-Fixture Hash Invariant
 

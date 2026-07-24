@@ -8,7 +8,7 @@ import { AnalysisCache } from "../../cache/analysisCache";
 import type { ModuleAnalysisSnapshot } from "../../domain/analysis";
 import type { ModuleContext } from "../../domain/module";
 
-const notRunVulnerabilities = { state: "not-run" as const, findings: [], errors: [] };
+const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
 
 const dummyModule: ModuleContext = {
   id: "mod-1",

@@ -29,6 +29,13 @@ ModBear parses deprecation and retraction metadata published by upstream module 
 - **Deprecation Diagnostics**: Highlights deprecated modules with actionable informational or warning diagnostics in the VS Code Problems pane.
 - **Retraction Diagnostics**: Flags retracted versions to prevent accidental usage of compromised or broken releases.
 
+## Vulnerability scanning
+
+ModBear integrates `govulncheck` to scan your Go project dependencies for vulnerabilities:
+- **Reachable vulnerabilities** are flagged as error diagnostics in the VS Code Problems pane.
+- **Imported and module-only vulnerabilities** are surfaced as warning diagnostics.
+- **Unavailable state**: If `govulncheck` is not installed or cannot execute, ModBear shows `Vulnerability analysis unavailable` rather than assuming your project is clean.
+
 ## Supported Go/VS Code versions
 
 - **VS Code**: `^1.109.0` or newer.
@@ -37,8 +44,8 @@ ModBear parses deprecation and retraction metadata published by upstream module 
 ## Workspace Trust
 
 ModBear respects VS Code Workspace Trust boundaries:
-- In **Untrusted Workspaces**, ModBear runs in Restricted Mode: external subprocess execution (`go list`) is completely disabled to protect your system from executing arbitrary code or tools in untrusted repositories.
-- The Go executable path setting (`modBear.go.path`) is restricted and can only be set in trusted user or workspace scopes.
+- In **Untrusted Workspaces**, ModBear runs in Restricted Mode: external subprocess execution (`go list` and `govulncheck`) is completely disabled to protect your system from executing arbitrary code or tools in untrusted repositories.
+- Go executable paths (`modBear.go.path` and `modBear.govulncheck.path`) are restricted and can only be set in trusted user or workspace scopes.
 
 ## Private modules and network access
 
@@ -66,11 +73,14 @@ ModBear can be configured using VS Code settings (`settings.json`):
 | --- | --- | --- | --- |
 | `modBear.enabled` | `boolean` | `true` | Enables or disables ModBear. |
 | `modBear.go.path` | `string` | `"go"` | Path to the `go` executable (Restricted in Untrusted Workspaces). |
+| `modBear.govulncheck.path` | `string` | `"govulncheck"` | Path to the `govulncheck` executable (Restricted in Untrusted Workspaces). |
 | `modBear.scan.onOpen` | `boolean` | `true` | Automatically trigger scan when opening `go.mod`. |
 | `modBear.scan.onSave` | `boolean` | `true` | Automatically trigger scan when saving `go.mod`. |
 | `modBear.scan.updateTtlMinutes` | `number` | `30` | Minutes to cache analysis snapshots before re-scanning. |
 | `modBear.scan.maxConcurrentModules` | `number` | `2` | Maximum concurrent background module scans. |
 | `modBear.scan.timeoutSeconds` | `number` | `120` | Timeout in seconds for individual module scan subprocesses. |
+| `modBear.vulnerability.enabled` | `boolean` | `true` | Enables vulnerability scanning. |
+| `modBear.vulnerability.timeoutSeconds` | `number` | `600` | Timeout in seconds for `govulncheck` runs. |
 | `modBear.inlayHints.enabled` | `boolean` | `true` | Enables inline inlay version hints in `go.mod`. |
 | `modBear.inlayHints.showIndirect` | `boolean` | `true` | Displays inlay hints for indirect dependencies (`// indirect`). |
 | `modBear.inlayHints.showUpToDate` | `boolean` | `false` | Displays `✓ current` for up-to-date dependencies. |

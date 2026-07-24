@@ -6,7 +6,7 @@ import type { ScanCoordinator } from "../../orchestration/scanCoordinator";
 import { DependencyInlayHintsProvider } from "../../providers/dependencyInlayHintsProvider";
 import { DependencyHoverProvider } from "../../providers/dependencyHoverProvider";
 
-const notRunVulnerabilities = { state: "not-run" as const, findings: [], errors: [] };
+const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
 
 suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
   test("places the available version immediately after the installed version", async () => {
@@ -187,5 +187,104 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
     assert.ok(markdown.value.includes("github.com/gin-gonic/gin"));
     assert.ok(markdown.value.includes("v1.10.1"));
     assert.ok(markdown.value.includes("go get github.com/gin-gonic/gin@v1.10.1"));
+  });
+
+  test("provides hover text indicating vulnerability analysis is unavailable", async () => {
+    const document = await vscode.workspace.openTextDocument({
+      language: "go.mod",
+      content: "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.9.1\n"
+    });
+    const module: ModuleContext = {
+      id: "/workspace/app",
+      moduleRoot: "/workspace/app",
+      goModPath: document.uri.fsPath
+    };
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: module.id,
+      contentHash: "fixture",
+      createdAt: new Date(0).toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: [
+        {
+          modulePath: "github.com/gin-gonic/gin",
+          installedVersion: "v1.9.1",
+          retractionRationales: [],
+          errors: []
+        }
+      ],
+      replacements: [],
+      vulnerabilities: {
+        state: "unavailable",
+        findings: [],
+        advisories: {},
+        errors: [{ code: "tool-not-found", message: "Vulnerability analysis is unavailable." }]
+      },
+      errors: []
+    };
+    const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+    const hoverProvider = new DependencyHoverProvider(coordinator, () => module);
+
+    const versionIndex = document.lineAt(2).text.indexOf("v1.9.1");
+    const hover = hoverProvider.provideHover(document, new vscode.Position(2, versionIndex + 1));
+    assert.ok(hover);
+    const markdown = hover.contents[0] as vscode.MarkdownString;
+    assert.ok(markdown.value.includes("Vulnerability analysis unavailable"));
+  });
+
+  test("provides hover showing vulnerability details when analysis is complete", async () => {
+    const document = await vscode.workspace.openTextDocument({
+      language: "go.mod",
+      content: "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.9.1\n"
+    });
+    const module: ModuleContext = {
+      id: "/workspace/app",
+      moduleRoot: "/workspace/app",
+      goModPath: document.uri.fsPath
+    };
+    const advisories = {
+      "GO-2026-0001": { id: "GO-2026-0001", summary: "Some critical vulnerability details" }
+    };
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: module.id,
+      contentHash: "fixture",
+      createdAt: new Date(0).toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: [
+        {
+          modulePath: "github.com/gin-gonic/gin",
+          installedVersion: "v1.9.1",
+          retractionRationales: [],
+          errors: []
+        }
+      ],
+      replacements: [],
+      vulnerabilities: {
+        state: "complete",
+        findings: [
+          {
+            osvId: "GO-2026-0001",
+            fixedVersion: "v1.10.0",
+            classification: "reachable",
+            trace: [{ module: "github.com/gin-gonic/gin", version: "v1.9.1" }]
+          }
+        ],
+        advisories,
+        errors: []
+      },
+      errors: []
+    };
+    const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+    const hoverProvider = new DependencyHoverProvider(coordinator, () => module);
+
+    const versionIndex = document.lineAt(2).text.indexOf("v1.9.1");
+    const hover = hoverProvider.provideHover(document, new vscode.Position(2, versionIndex + 1));
+    assert.ok(hover);
+    const markdown = hover.contents[0] as vscode.MarkdownString;
+    assert.ok(markdown.value.includes("GO-2026-0001"));
+    assert.ok(markdown.value.includes("reachable"));
+    assert.ok(markdown.value.includes("Some critical vulnerability details"));
+    assert.ok(markdown.value.includes("Fixed in: `v1.10.0`"));
   });
 });

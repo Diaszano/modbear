@@ -5,7 +5,7 @@ import type { ModuleContext } from "../../domain/module";
 import type { ScanCoordinator } from "../../orchestration/scanCoordinator";
 import { StatusBarManager } from "../../providers/statusBarManager";
 
-const notRunVulnerabilities = { state: "not-run" as const, findings: [], errors: [] };
+const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
 
 function getTooltipText(tooltip: string | vscode.MarkdownString | undefined): string {
   if (!tooltip) return "";
@@ -152,6 +152,120 @@ suite("StatusBarManager Test Suite", () => {
 
     const item = manager.getStatusBarItem();
     assert.equal(item.text, "🐻 ModBear: 1 update");
+
+    manager.dispose();
+  });
+
+  test("shows vulnerability analysis unavailable when vulnerabilities state is unavailable", () => {
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: "mod-1",
+      contentHash: "hash",
+      createdAt: new Date().toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: [],
+      replacements: [],
+      vulnerabilities: {
+        state: "unavailable",
+        findings: [],
+        advisories: {},
+        errors: [{ code: "tool-not-found", message: "Vulnerability analysis is unavailable." }]
+      },
+      errors: []
+    };
+
+    const coordinator = { getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined) } as unknown as ScanCoordinator;
+    const manager = new StatusBarManager(coordinator);
+    manager.setModules([dummyModule]);
+
+    const item = manager.getStatusBarItem();
+    assert.equal(item.text, "$(question) ModBear: Vulnerability analysis unavailable");
+
+    manager.dispose();
+  });
+
+  test("shows vulnerability count alongside updates and warnings", () => {
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: "mod-1",
+      contentHash: "hash",
+      createdAt: new Date().toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: [
+        {
+          modulePath: "example.com/dep1",
+          installedVersion: "v1.0.0",
+          availableVersion: "v1.1.0",
+          retractionRationales: [],
+          errors: []
+        }
+      ],
+      replacements: [],
+      vulnerabilities: {
+        state: "complete",
+        findings: [
+          {
+            osvId: "GO-2026-0001",
+            fixedVersion: "v1.2.3",
+            classification: "reachable",
+            trace: [{ module: "example.com/dep1", version: "v1.0.0" }]
+          }
+        ],
+        advisories: {},
+        errors: []
+      },
+      errors: []
+    };
+
+    const coordinator = { getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined) } as unknown as ScanCoordinator;
+    const manager = new StatusBarManager(coordinator);
+    manager.setModules([dummyModule]);
+
+    const item = manager.getStatusBarItem();
+    assert.equal(item.text, "🐻 ModBear: 1 update, 1 vulnerability");
+    assert.ok(getTooltipText(item.tooltip).includes("Vulnerabilities: 1"));
+
+    manager.dispose();
+  });
+
+  test("shows updates and warnings but appends vulnerability analysis unavailable to tooltip when scanner is unavailable", () => {
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: "mod-1",
+      contentHash: "hash",
+      createdAt: new Date().toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: [
+        {
+          modulePath: "example.com/dep1",
+          installedVersion: "v1.0.0",
+          availableVersion: "v1.1.0",
+          retractionRationales: [],
+          errors: []
+        }
+      ],
+      replacements: [],
+      vulnerabilities: {
+        state: "unavailable",
+        findings: [],
+        advisories: {},
+        errors: [{ code: "tool-not-found", message: "Vulnerability analysis is unavailable." }]
+      },
+      errors: []
+    };
+
+    const coordinator = { getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined) } as unknown as ScanCoordinator;
+    const manager = new StatusBarManager(coordinator);
+    manager.setModules([dummyModule]);
+
+    const item = manager.getStatusBarItem();
+    // Should prioritize showing updates (text should indicate update)
+    assert.equal(item.text, "🐻 ModBear: 1 update");
+    
+    // Tooltip should contain both the updates and the vulnerability analysis unavailable note
+    const tooltipText = getTooltipText(item.tooltip);
+    assert.ok(tooltipText.includes("Updates: 1"));
+    assert.ok(tooltipText.includes("- Vulnerability analysis: Unavailable"));
 
     manager.dispose();
   });
