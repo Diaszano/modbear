@@ -54,7 +54,7 @@ Terminal lifecycle tracking will be isolated in a small provider/service so comm
 
 ### Command formatting
 
-Normal Go module paths and semantic versions produce the familiar unquoted command. Values containing shell-significant characters are safely quoted as one argument. Carriage returns, line feeds, and terminal control characters are rejected rather than inserted into a terminal.
+Normal Go module paths and semantic versions produce the familiar unquoted command. Values containing shell-significant characters, carriage returns, line feeds, or terminal control characters are rejected rather than inserted into a terminal.
 
 ## Safety and Trust
 
