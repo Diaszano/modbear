@@ -7,7 +7,7 @@ This document details the security architecture, safety guarantees, and invarian
 ModBear enforces a strict read-only model. The extension **never** mutates module manifests (`go.mod`, `go.sum`, `go.work`) or alters the local Go environment.
 
 ### Forbidden Operations Matrix
-- **`go get`**: Strictly forbidden from being spawned or executed by the extension. Suggested update commands are displayed in hover cards or copied to clipboard only.
+- **`go get`**: Strictly forbidden from being spawned or automatically executed by the extension. A suggestion may be displayed, copied, or inserted into a trusted-workspace terminal with `sendText(command, false)` so the user must press Enter.
 - **`go mod tidy`**: Forbidden in mutating form. (In future plans, only the safe read-only form `go mod tidy -diff` may be used).
 - **`go env -w`**: Strictly forbidden; ModBear never mutates environment configuration.
 - **`go install`**: Strictly forbidden from being invoked by the extension.
@@ -19,6 +19,9 @@ ModBear enforces a strict read-only model. The extension **never** mutates modul
   ```bash
   ! grep -R -nE 'go get|go mod tidy([^[:alnum:]-]|$)|go env -w|go install|shell:[[:space:]]*true' src --exclude-dir=test
   ```
+- Terminal suggestions accept only validated Go module paths and versions without shell metacharacters or control characters.
+- Tests require every terminal suggestion to call `sendText(command, false)`.
+- Terminal preparation is blocked when VS Code reports an untrusted workspace.
 
 ## 2. Shell-Free Execution
 

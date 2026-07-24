@@ -7,6 +7,10 @@ import { ModuleScanner } from "./orchestration/moduleScanner";
 import { DependencyHoverProvider } from "./providers/dependencyHoverProvider";
 import { DependencyInlayHintsProvider } from "./providers/dependencyInlayHintsProvider";
 import { StatusBarManager } from "./providers/statusBarManager";
+import {
+  PREPARE_UPDATE_COMMAND_ID,
+  TerminalUpdateManager
+} from "./providers/terminalUpdateManager";
 import { discoverModules } from "./discovery/moduleDiscovery";
 import { resolveActiveModule } from "./discovery/activeModuleResolver";
 import { readConfig } from "./config/config";
@@ -22,7 +26,7 @@ export { EXTENSION_ID };
 
 async function requireTrustedWorkspace(): Promise<boolean> {
   if (vscode.workspace.isTrusted) return true;
-  await vscode.window.showWarningMessage("Trust this workspace before running Go dependency analysis.");
+  await vscode.window.showWarningMessage("Trust this workspace before running ModBear workspace actions.");
   return false;
 }
 
@@ -34,6 +38,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const cache = new AnalysisCache(cachePath);
   const coordinator = new ScanCoordinator(() => getConfig().maxConcurrentModules);
   const statusBarManager = new StatusBarManager(coordinator);
+  const terminalUpdateManager = new TerminalUpdateManager(
+    (options) => vscode.window.createTerminal(options)
+  );
   
   let modules: readonly ModuleContext[] = [];
   
@@ -73,7 +80,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     diagnosticManager,
     coordinator,
     inlayProvider,
-    statusBarManager
+    statusBarManager,
+    vscode.window.onDidCloseTerminal((terminal) => terminalUpdateManager.forget(terminal))
   );
 
   const documentSelector: vscode.DocumentSelector = { pattern: "**/go.mod", scheme: "file" };
@@ -143,6 +151,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand(PREPARE_UPDATE_COMMAND_ID, async (input: unknown) => {
+      if (!(await requireTrustedWorkspace())) return;
+      try {
+        terminalUpdateManager.prepare(input);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        output.error(`Could not prepare dependency update: ${message}`);
+        await vscode.window.showErrorMessage(`ModBear: Could not prepare update: ${message}`);
+      }
+    }),
     vscode.commands.registerCommand("modBear.scanWorkspace", async () => {
       if (!(await requireTrustedWorkspace())) return;
       output.info("Manual scan triggered");

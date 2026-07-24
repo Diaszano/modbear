@@ -8,9 +8,9 @@ ModBear analyzes your Go project dependencies by examining `go.mod` files and in
 
 ## Read-only guarantee
 
-> ModBear never runs `go get` and never edits `go.mod`, `go.sum`, or `go.work`. Suggested commands are displayed or copied only.
+> ModBear never runs `go get` automatically and never edits `go.mod`, `go.sum`, or `go.work` itself.
 
-ModBear is built from the ground up to be safe and non-intrusive. It never alters your files or modifies your workspace configuration. All update suggestions (such as `go get example.com/mod@v1.2.3`) are strictly presented for copy-pasting or reference, leaving full control of code modification in your hands.
+ModBear is safe and non-intrusive. Update suggestions can be displayed, copied, or prepared in an integrated terminal rooted at the owning module. A prepared command is inserted without Enter; only the user can choose to execute it.
 
 ## Inline available-version hints
 
@@ -19,6 +19,7 @@ When viewing `go.mod` files, ModBear displays inline inlay hints showing availab
 - **Indirect dependencies**: Configurable display for indirect requirement lines (`// indirect`).
 - **Status indicators**: Clear visual badges for deprecations (`⚠ deprecated`) and retractions (`⚠ retracted · → v1.2.0`).
 - **Up-to-date dependencies**: Optional checkmark indicator (`✓ current`) for modules already on their latest version.
+- **Terminal preparation**: Click the terminal icon beside an available version to fill `go get module@version` in the correct module terminal without executing it.
 
 Inlay hints are purely visual overlays rendered by VS Code and never modify the document content.
 
