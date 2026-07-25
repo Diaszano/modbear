@@ -18,15 +18,28 @@ try {
   const paths = unzipResult.stdout
     .split('\n')
     .filter(Boolean)
-    .map((path) => path.replace(/^extension\//, '').toLowerCase());
+    .map((path) => path.toLowerCase());
+  const payloadPrefix = 'extension/';
+  const payloadPaths = paths.filter((path) => path.startsWith(payloadPrefix));
+  const rootPaths = paths.filter((path) => !path.startsWith(payloadPrefix));
+  const rootMetadata = new Set(['[content_types].xml', 'extension.vsixmanifest', '_rels/.rels']);
+
+  assert.ok(payloadPaths.length > 0, 'VSIX must contain an extension payload');
+  assert.ok(paths.includes('extension/package.json'), 'VSIX payload must remain under extension/');
+  for (const path of rootPaths) {
+    assert.ok(rootMetadata.has(path), `Unexpected VSIX root metadata path: ${path}`);
+  }
 
   const required = ['package.json', 'readme.md', 'changelog.md', 'license.txt'];
   const requiredPrefixes = ['dist/', 'resources/'];
   for (const path of required) {
-    assert.ok(paths.includes(path), `Required package path missing: ${path}`);
+    assert.ok(payloadPaths.includes(`${payloadPrefix}${path}`), `Required package path missing: ${path}`);
   }
   for (const prefix of requiredPrefixes) {
-    assert.ok(paths.some((path) => path.startsWith(prefix)), `Required package path missing: ${prefix}`);
+    assert.ok(
+      payloadPaths.some((path) => path.startsWith(`${payloadPrefix}${prefix}`)),
+      `Required package path missing: ${prefix}`,
+    );
   }
 
   const forbidden = [
@@ -44,18 +57,23 @@ try {
     '.nvmrc',
     '.gitignore',
   ];
-  for (const path of paths) {
-    assert.ok(!forbidden.some((entry) => path === entry || path.startsWith(entry)), `Forbidden package path: ${path}`);
-    assert.ok(!/^esbuild\..+/.test(path), `Forbidden package path: ${path}`);
+  for (const path of payloadPaths) {
+    const payloadPath = path.slice(payloadPrefix.length);
+    assert.ok(
+      !forbidden.some((entry) => payloadPath === entry || payloadPath.startsWith(entry)),
+      `Forbidden package path: ${payloadPath}`,
+    );
+    assert.ok(!/^esbuild\..+/.test(payloadPath), `Forbidden package path: ${payloadPath}`);
   }
 
   const allowed = new Set(['package.json', 'package.nls.json', 'readme.md', 'changelog.md', 'license.txt']);
-  const allowedPrefixes = ['dist/', 'resources/', '[content_types].xml', '_rels/', 'extension.vsixmanifest'];
+  const allowedPrefixes = ['dist/', 'resources/'];
   assert.ok((await stat(archive)).size < 2 * 1024 * 1024, 'VSIX exceeds 2 MiB budget');
-  for (const path of paths) {
+  for (const path of payloadPaths) {
+    const payloadPath = path.slice(payloadPrefix.length);
     assert.ok(
-      allowed.has(path) || allowedPrefixes.some((prefix) => path.startsWith(prefix)),
-      `Unexpected package path: ${path}`,
+      allowed.has(payloadPath) || allowedPrefixes.some((prefix) => payloadPath.startsWith(prefix)),
+      `Unexpected package path: ${payloadPath}`,
     );
   }
 } finally {

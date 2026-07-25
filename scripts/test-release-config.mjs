@@ -36,8 +36,28 @@ const actionRefs = {
   'actions/setup-node': 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
   'actions/dependency-review-action': 'actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019',
 };
-const workflows = [ciWorkflow, releaseWorkflow, prTitleWorkflow];
-for (const workflow of workflows) {
+const workflows = { ci: ciWorkflow, release: releaseWorkflow, prTitle: prTitleWorkflow };
+const expectAction = (workflowName, jobName, action) => {
+  const job = workflows[workflowName].jobs[jobName];
+  assert.ok(job, `${workflowName} must define the ${jobName} job`);
+  const actionStep = job.steps?.find((entry) => entry.uses?.startsWith(`${action}@`));
+  assert.ok(actionStep, `${workflowName} ${jobName} must use ${action}`);
+  assert.equal(actionStep.uses, actionRefs[action], `${workflowName} ${jobName} must pin ${action}`);
+  if (action === 'actions/setup-node') {
+    assert.equal(actionStep.with?.['node-version'], 24, `${workflowName} ${jobName} must use Node 24`);
+  }
+};
+expectAction('ci', 'dependency-review', 'actions/dependency-review-action');
+expectAction('ci', 'dependency-review', 'actions/checkout');
+for (const jobName of ['commitlint', 'lint', 'test', 'test-release', 'build']) {
+  expectAction('ci', jobName, 'actions/checkout');
+  expectAction('ci', jobName, 'actions/setup-node');
+}
+expectAction('prTitle', 'commitlint', 'actions/checkout');
+expectAction('prTitle', 'commitlint', 'actions/setup-node');
+expectAction('release', 'release', 'actions/checkout');
+expectAction('release', 'release', 'actions/setup-node');
+for (const workflow of Object.values(workflows)) {
   for (const job of Object.values(workflow.jobs)) {
     for (const workflowStep of job.steps ?? []) {
       for (const [action, reference] of Object.entries(actionRefs)) {
@@ -61,9 +81,10 @@ assert.equal(semanticRelease['continue-on-error'], undefined, 'Semantic Release 
 
 const marketplacePublish = releaseWorkflow.jobs.release.steps.find((entry) => entry.name === 'Publish to VS Code Marketplace');
 assert.ok(marketplacePublish, 'Marketplace publication step missing');
-assert.match(
-  marketplacePublish.if,
-  /steps\.release\.outputs\.published == 'true' && steps\.marketplace\.outputs\.available == 'true'/,
+assert.equal(
+  marketplacePublish.if.replace(/\s+/g, ' ').trim(),
+  "steps.release.outputs.published == 'true' && steps.marketplace.outputs.available == 'true'",
+  'Marketplace publication must require both a published release and an available credential',
 );
 
 assert.equal(codeowners, '* @diaszano\n.github/ @diaszano\n');
