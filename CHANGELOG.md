@@ -1,3 +1,5 @@
+## 1.0.0-dev.1 (2026-07-25)
+
 # Changelog
 
 All notable changes to the ModBear extension will be documented in this file.
