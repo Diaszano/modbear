@@ -186,6 +186,15 @@ assert.deepEqual(
     },
   ],
 );
+assert.deepEqual(dependabot.updates[0]["commit-message"], { prefix: "fix(deps)" });
+assert.deepEqual(dependabot.updates[1]["commit-message"], { prefix: "chore(ci)" });
+assert.equal(dependabot.updates[0]["open-pull-requests-limit"], 5);
+assert.equal(dependabot.updates[1]["open-pull-requests-limit"], 3);
+for (const update of dependabot.updates) {
+  assert.deepEqual(update.groups, {
+    "minor-and-patch": { "update-types": ["minor", "patch"] },
+  });
+}
 for (const term of [
   "Conventional Commit",
   "npm run lint",
@@ -195,6 +204,7 @@ for (const term of [
   "npm run test:extension",
   "npm run test:release",
   "npm run test:package",
+  "VSIX contract",
   "documentation",
 ]) {
   assert.match(prTemplate, new RegExp(term, "i"), `PR template must include ${term}`);

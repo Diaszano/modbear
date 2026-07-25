@@ -1,0 +1,75 @@
+name: Bug report
+description: Report an issue with the ModBear VS Code extension.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve ModBear.
+  - type: input
+    id: vscode-version
+    attributes:
+      label: VS Code version
+    validations:
+      required: true
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating system
+    validations:
+      required: true
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version
+    validations:
+      required: true
+  - type: input
+    id: go-path
+    attributes:
+      label: Go path
+      description: Include the configured `modBear.go.path` value.
+    validations:
+      required: true
+  - type: input
+    id: govulncheck-version
+    attributes:
+      label: govulncheck version
+    validations:
+      required: true
+  - type: input
+    id: govulncheck-path
+    attributes:
+      label: govulncheck path
+      description: Include the configured `modBear.govulncheck.path` value.
+    validations:
+      required: true
+  - type: input
+    id: modbear-version
+    attributes:
+      label: ModBear version
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a Go module
+        2. Run ModBear: Scan Workspace
+        3. Observe the result
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
