@@ -100,6 +100,7 @@ export class ModuleScanner {
         dependencies: attachReplacementStatuses(rawDependencies, replacements),
         replacements,
         vulnerabilities,
+        tidy: { state: "idle", consistent: false, errors: [] },
         errors: []
       };
       await this.cache.set(contentHash, snapshot);

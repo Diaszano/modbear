@@ -7,6 +7,7 @@ import { AnalysisCache } from "../../cache/analysisCache";
 import type { ModuleAnalysisSnapshot } from "../../domain/analysis";
 
 const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
+const notRunTidy = { state: "idle" as const, consistent: false, errors: [] };
 
 const mockSnapshot: ModuleAnalysisSnapshot = {
   moduleId: "mod-1",
@@ -17,6 +18,7 @@ const mockSnapshot: ModuleAnalysisSnapshot = {
   dependencies: [],
   replacements: [],
   vulnerabilities: notRunVulnerabilities,
+  tidy: notRunTidy,
   errors: []
 };
 

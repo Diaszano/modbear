@@ -11,6 +11,7 @@ import type { ModuleAnalysisSnapshot } from "../../domain/analysis";
 import type { ModuleContext } from "../../domain/module";
 
 const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
+const notRunTidy = { state: "idle" as const, consistent: false, errors: [] };
 
 const dummyModule: ModuleContext = {
   id: "mod-1",
@@ -27,6 +28,7 @@ const mockSnapshot: ModuleAnalysisSnapshot = {
   dependencies: [],
   replacements: [],
   vulnerabilities: notRunVulnerabilities,
+  tidy: notRunTidy,
   errors: []
 };
 
@@ -275,6 +277,7 @@ test("ScanCoordinator and ModuleScanner emit structured scan lifecycle events", 
       dependencies: [],
       replacements: [],
       vulnerabilities: { state: "not-run", findings: [], advisories: {}, errors: [] },
+      tidy: notRunTidy,
       errors: []
     };
 
