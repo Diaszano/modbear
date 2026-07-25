@@ -1,6 +1,7 @@
 # ModBear tooling, CI/CD, and governance design
 
 **Date:** 2026-07-25
+**Status:** Approved
 
 ## Goal
 
