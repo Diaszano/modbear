@@ -26,6 +26,16 @@ try {
 
   assert.ok(payloadPaths.length > 0, "VSIX must contain an extension payload");
   assert.ok(paths.includes("extension/package.json"), "VSIX payload must remain under extension/");
+  const packageJsonResult = spawnSync("unzip", ["-p", archive, "extension/package.json"], {
+    encoding: "utf8",
+  });
+  assert.equal(packageJsonResult.status, 0, packageJsonResult.stderr);
+  const packageJson = JSON.parse(packageJsonResult.stdout);
+  assert.equal(
+    packageJson.capabilities.untrustedWorkspaces.description,
+    "Dependency scans execute the Go toolchain in the workspace.",
+    "Workspace Trust description must be self-contained in the VSIX manifest",
+  );
   for (const path of rootPaths) {
     assert.ok(rootMetadata.has(path), `Unexpected VSIX root metadata path: ${path}`);
   }
@@ -53,6 +63,7 @@ try {
     "package-lock.json",
     "tsconfig.json",
     "commitlint.config.js",
+    "package.nls.json",
     ".releaserc.json",
     ".nvmrc",
     ".gitignore",
@@ -66,7 +77,7 @@ try {
     assert.ok(!/^esbuild\..+/.test(payloadPath), `Forbidden package path: ${payloadPath}`);
   }
 
-  const allowed = new Set(["package.json", "package.nls.json", "readme.md", "changelog.md", "license.txt"]);
+  const allowed = new Set(["package.json", "readme.md", "changelog.md", "license.txt"]);
   const allowedPrefixes = ["dist/", "resources/"];
   assert.ok((await stat(archive)).size < 2 * 1024 * 1024, "VSIX exceeds 2 MiB budget");
   for (const path of payloadPaths) {

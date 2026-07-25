@@ -35,7 +35,7 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "%workspaceTrust.description%",
+      "description": "Dependency scans execute the Go toolchain in the workspace.",
       "restrictedConfigurations": [
         "modBear.go.path",
         "modBear.govulncheck.path"

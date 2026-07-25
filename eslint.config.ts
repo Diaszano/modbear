@@ -75,8 +75,18 @@ export default defineConfig(
     files: ["src/test/**/*.ts", "esbuild.ts", "eslint.config.ts"],
     rules: {
       "@typescript-eslint/no-empty-function": "off",
-      "@typescript-eslint/no-floating-promises": "off",
       "no-console": "off",
+    },
+  },
+  {
+    files: ["src/test/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-floating-promises": [
+        "error",
+        {
+          allowForKnownSafeCalls: [{ from: "package", name: "test", package: "node:test" }],
+        },
+      ],
     },
   },
 );

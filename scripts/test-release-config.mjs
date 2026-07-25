@@ -4,6 +4,9 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { analyzeCommits } from "@semantic-release/commit-analyzer";
+import commitlintLint from "@commitlint/lint";
+import commitlintLoad from "@commitlint/load";
+import { ESLint } from "eslint";
 import { load } from "js-yaml";
 
 const config = JSON.parse(await readFile(".releaserc.json", "utf8"));
@@ -56,6 +59,7 @@ expectAction("release", "release", "actions/checkout");
 expectAction("release", "release", "actions/setup-node");
 for (const workflow of Object.values(workflows)) {
   for (const job of Object.values(workflow.jobs)) {
+    assert.equal(job["continue-on-error"], undefined, "Workflow jobs must fail closed");
     for (const workflowStep of job.steps ?? []) {
       for (const [action, reference] of Object.entries(actionRefs)) {
         if (workflowStep.uses?.startsWith(`${action}@`)) {
@@ -124,6 +128,49 @@ assert.equal(prTitleWorkflow.concurrency["cancel-in-progress"], true);
 const prTitleValidation = prTitleWorkflow.jobs.commitlint.steps.find((entry) => entry.name === "Validate PR title");
 assert.deepEqual(prTitleValidation.env, { PR_TITLE: "${{ github.event.pull_request.title }}" });
 assert.equal(prTitleValidation.run, `printf '%s\\n' "$PR_TITLE" | npx --no -- commitlint`);
+
+const commitlintConfig = await commitlintLoad({}, { cwd: process.cwd() });
+const newLegacyTitleValidation = await commitlintLint("merge: add OpenCode agents", commitlintConfig.rules, {
+  defaultIgnores: commitlintConfig.defaultIgnores,
+  ignores: commitlintConfig.ignores,
+  parserOpts: commitlintConfig.parserPreset?.parserOpts,
+  plugins: commitlintConfig.plugins,
+  helpUrl: commitlintConfig.helpUrl,
+});
+assert.equal(
+  newLegacyTitleValidation.valid,
+  false,
+  "Only the historical legacy SHA may bypass conventional commit validation",
+);
+
+const eslint = new ESLint();
+const nodeTestRegistration = await eslint.lintText(
+  'import test from "node:test";\ntest("registers an async test", async () => {});\n',
+  { filePath: "src/test/unit/smoke.test.ts" },
+);
+assert.equal(
+  nodeTestRegistration[0]?.messages.filter(({ ruleId }) => ruleId === "@typescript-eslint/no-floating-promises").length,
+  0,
+  "node:test registrations must be allowed to float",
+);
+const floatingPromise = await eslint.lintText(
+  'import test from "node:test";\ntest("registers an async test", async () => {});\nPromise.resolve();\n',
+  { filePath: "src/test/unit/smoke.test.ts" },
+);
+assert.equal(
+  floatingPromise[0]?.messages.filter(({ ruleId }) => ruleId === "@typescript-eslint/no-floating-promises").length,
+  1,
+  "Test files must reject unhandled promises outside node:test registration",
+);
+const floatingToolingPromise = await eslint.lintText("Promise.resolve();\n", {
+  filePath: "esbuild.ts",
+});
+assert.equal(
+  floatingToolingPromise[0]?.messages.filter(({ ruleId }) => ruleId === "@typescript-eslint/no-floating-promises")
+    .length,
+  1,
+  "Tooling files must reject unhandled promises",
+);
 
 const semanticRelease = releaseWorkflow.jobs.release.steps.find((entry) => entry.id === "semantic-release");
 assert.ok(semanticRelease, "Semantic Release step missing");
