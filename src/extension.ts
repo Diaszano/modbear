@@ -6,6 +6,7 @@ import { ScanCoordinator } from "./orchestration/scanCoordinator";
 import { ModuleScanner, type ScanTrigger } from "./orchestration/moduleScanner";
 import { DependencyHoverProvider } from "./providers/dependencyHoverProvider";
 import { DependencyInlayHintsProvider } from "./providers/dependencyInlayHintsProvider";
+import { DependencyCodeActionsProvider } from "./providers/dependencyCodeActionsProvider";
 import { StatusBarManager } from "./providers/statusBarManager";
 import {
   PREPARE_UPDATE_COMMAND_ID,
@@ -160,12 +161,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const hoverProvider = new DependencyHoverProvider(coordinator, resolveModule, documentCache);
   const inlayProvider = new DependencyInlayHintsProvider(coordinator, resolveModule, requestScan, documentCache);
+  const codeActionsProvider = new DependencyCodeActionsProvider(coordinator, resolveModule, documentCache);
 
   context.subscriptions.push(
     output,
     diagnosticManager,
     coordinator,
     inlayProvider,
+    codeActionsProvider,
     statusBarManager,
     detailsDocumentProvider,
     documentCache,
@@ -178,6 +181,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.languages.registerHoverProvider(documentSelector, hoverProvider),
     vscode.languages.registerInlayHintsProvider(documentSelector, inlayProvider),
+    vscode.languages.registerCodeActionsProvider(documentSelector, codeActionsProvider, {
+      providedCodeActionKinds: [vscode.CodeActionKind.QuickFix]
+    }),
     vscode.workspace.registerTextDocumentContentProvider("modbear", detailsDocumentProvider)
   );
 

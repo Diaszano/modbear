@@ -84,6 +84,26 @@
         "title": "ModBear: Show Status Bar Menu"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "modBear.showDetails",
+          "when": "false"
+        },
+        {
+          "command": "modBear.explainDependency",
+          "when": "false"
+        },
+        {
+          "command": "modBear.openAdvisory",
+          "when": "false"
+        },
+        {
+          "command": "modBear.showTidyDiff",
+          "when": "false"
+        }
+      ]
+    },
     "configuration": {
       "title": "ModBear",
       "properties": {
