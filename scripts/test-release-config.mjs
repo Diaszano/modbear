@@ -13,6 +13,14 @@ const plugin = (name) =>
 assert.deepEqual(config.branches, ['main', { name: 'dev', prerelease: 'dev' }]);
 assert.equal(config.tagFormat, 'v${version}');
 
+const packageText = await readFile('package.json', 'utf8');
+const readmeText = await readFile('README.md', 'utf8');
+assert.match(packageText, /"modBear\.govulncheck\.path"/);
+assert.match(packageText, /"modBear\.vulnerability\.enabled"/);
+assert.match(packageText, /"modBear\.vulnerability\.timeoutSeconds"/);
+assert.match(readmeText, /vulnerability analysis unavailable/i);
+assert.doesNotMatch(readmeText, /free of vulnerabilities|no vulnerabilities/i);
+
 const analyzer = plugin('@semantic-release/commit-analyzer');
 assert.ok(Array.isArray(analyzer));
 const rules = new Map(analyzer[1].releaseRules.map(({ type, release }) => [type, release]));

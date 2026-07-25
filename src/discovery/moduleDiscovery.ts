@@ -6,13 +6,19 @@ import { parseGoWorkUses } from "./goWorkParser";
 const EXCLUDED = new Set([".git", "vendor", "node_modules", "testdata", ".cache"]);
 const MAX_DIRECTORIES = 5_000;
 
+export interface ModuleDiscoveryResult {
+  readonly modules: readonly ModuleContext[];
+  readonly errors: readonly Error[];
+}
+
 export async function discoverModules(
   roots: readonly string[],
   signal: AbortSignal
-): Promise<readonly ModuleContext[]> {
+): Promise<ModuleDiscoveryResult> {
   const modules = new Map<string, ModuleContext>();
   const workspaces: Array<{ workspaceFolder: string; goWorkPath: string }> = [];
   const seenDirectories = new Set<string>();
+  const errors: Error[] = [];
   let visited = 0;
 
   const addModule = async (
@@ -44,7 +50,15 @@ export async function discoverModules(
 
   const walk = async (directory: string, workspaceFolder: string): Promise<void> => {
     if (signal.aborted) throw new Error("Discovery cancelled");
-    const realDirectory = await realpath(directory);
+    let realDirectory: string;
+    try {
+      realDirectory = await realpath(directory);
+    } catch (err) {
+      if (signal.aborted) throw new Error("Discovery cancelled");
+      errors.push(err instanceof Error ? err : new Error(String(err)));
+      return;
+    }
+
     if (seenDirectories.has(realDirectory)) return;
     seenDirectories.add(realDirectory);
     visited += 1;
@@ -52,31 +66,68 @@ export async function discoverModules(
       throw new Error(`Discovery exceeded ${MAX_DIRECTORIES} directories`);
     }
 
-    const dir = await opendir(realDirectory);
-    for await (const entry of dir) {
+    let dir;
+    try {
+      dir = await opendir(realDirectory);
+    } catch (err) {
       if (signal.aborted) throw new Error("Discovery cancelled");
-      const entryPath = path.join(realDirectory, entry.name);
-      if (entry.name === "go.mod" && entry.isFile()) {
-        await addModule(realDirectory, workspaceFolder);
-      } else if (entry.name === "go.work" && entry.isFile()) {
-        workspaces.push({ workspaceFolder, goWorkPath: await realpath(entryPath) });
-      } else if (entry.isDirectory() && !EXCLUDED.has(entry.name)) {
-        await walk(entryPath, workspaceFolder);
+      errors.push(err instanceof Error ? err : new Error(String(err)));
+      return;
+    }
+
+    try {
+      for await (const entry of dir) {
+        if (signal.aborted) throw new Error("Discovery cancelled");
+        const entryPath = path.join(realDirectory, entry.name);
+        try {
+          if (entry.name === "go.mod" && entry.isFile()) {
+            await addModule(realDirectory, workspaceFolder);
+          } else if (entry.name === "go.work" && entry.isFile()) {
+            workspaces.push({ workspaceFolder, goWorkPath: await realpath(entryPath) });
+          } else if (entry.isDirectory() && !EXCLUDED.has(entry.name)) {
+            await walk(entryPath, workspaceFolder);
+          }
+        } catch (err) {
+          if (signal.aborted || (err instanceof Error && err.message.includes("exceeded"))) throw err;
+          errors.push(err instanceof Error ? err : new Error(String(err)));
+        }
       }
+    } catch (err) {
+      if (signal.aborted || (err instanceof Error && err.message.includes("exceeded"))) throw err;
+      errors.push(err instanceof Error ? err : new Error(String(err)));
     }
   };
 
-  for (const root of roots) await walk(root, root);
-
-  for (const workspace of workspaces) {
-    if (signal.aborted) throw new Error("Discovery cancelled");
-    const uses = parseGoWorkUses(await readFile(workspace.goWorkPath, "utf8"));
-    const goWorkDirectory = path.dirname(workspace.goWorkPath);
-    for (const usePath of uses) {
-      const candidate = path.resolve(goWorkDirectory, usePath);
-      await addModule(candidate, workspace.workspaceFolder, workspace.goWorkPath).catch(() => undefined);
+  for (const root of roots) {
+    try {
+      await walk(root, root);
+    } catch (err) {
+      if (signal.aborted) throw new Error("Discovery cancelled");
+      errors.push(err instanceof Error ? err : new Error(String(err)));
+      if (err instanceof Error && err.message.includes("exceeded")) break;
     }
   }
 
-  return [...modules.values()].sort((a, b) => a.moduleRoot.localeCompare(b.moduleRoot));
+  for (const workspace of workspaces) {
+    if (signal.aborted) throw new Error("Discovery cancelled");
+    try {
+      const uses = parseGoWorkUses(await readFile(workspace.goWorkPath, "utf8"));
+      const goWorkDirectory = path.dirname(workspace.goWorkPath);
+      for (const usePath of uses) {
+        const candidate = path.resolve(goWorkDirectory, usePath);
+        await addModule(candidate, workspace.workspaceFolder, workspace.goWorkPath).catch((err) => {
+          if (signal.aborted) throw new Error("Discovery cancelled");
+          errors.push(err instanceof Error ? err : new Error(String(err)));
+        });
+      }
+    } catch (err) {
+      if (signal.aborted) throw new Error("Discovery cancelled");
+      errors.push(err instanceof Error ? err : new Error(String(err)));
+    }
+  }
+
+  return {
+    modules: [...modules.values()].sort((a, b) => a.moduleRoot.localeCompare(b.moduleRoot)),
+    errors
+  };
 }

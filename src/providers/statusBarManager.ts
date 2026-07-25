@@ -38,7 +38,7 @@ export class StatusBarManager implements vscode.Disposable {
   public update(): void {
     if (this.activeScansCount > 0) {
       this.statusBarItem.text = "$(sync~spin) ModBear: Scanning...";
-      const tooltip = new vscode.MarkdownString("ModBear is scanning Go modules for updates and vulnerabilities...", true);
+      const tooltip = new vscode.MarkdownString("ModBear is scanning Go modules for updates, deprecations, and retractions...", true);
       tooltip.isTrusted = true;
       this.statusBarItem.tooltip = tooltip;
       return;
@@ -46,7 +46,10 @@ export class StatusBarManager implements vscode.Disposable {
 
     let totalUpdates = 0;
     let totalWarnings = 0;
+    let totalVulnerabilities = 0;
     let hasErrors = false;
+    let hasStaleResults = false;
+    let hasUnavailableVulnerabilities = false;
 
     for (const module of this.modules) {
       const snapshot = this.coordinator.getSnapshot(module.id);
@@ -54,6 +57,14 @@ export class StatusBarManager implements vscode.Disposable {
 
       if (snapshot.updateState === "failed") {
         hasErrors = true;
+      }
+      if (snapshot.stale || snapshot.updateState === "partial") {
+        hasStaleResults = true;
+      }
+      if (snapshot.vulnerabilities.state === "unavailable") {
+        hasUnavailableVulnerabilities = true;
+      } else if (snapshot.vulnerabilities.state === "complete") {
+        totalVulnerabilities += snapshot.vulnerabilities.findings.length;
       }
 
       const { updates, warnings } = getSnapshotMetrics(snapshot);
@@ -66,16 +77,29 @@ export class StatusBarManager implements vscode.Disposable {
       const tooltip = new vscode.MarkdownString("Some module scans failed. Click to open logs.", true);
       tooltip.isTrusted = true;
       this.statusBarItem.tooltip = tooltip;
-    } else if (totalUpdates > 0 || totalWarnings > 0) {
+    } else if (hasStaleResults) {
+      this.statusBarItem.text = "$(warning) ModBear: Results may be stale";
+      const tooltip = new vscode.MarkdownString("Dependency refresh failed; displaying the last successful results. Click to open logs.", true);
+      tooltip.isTrusted = true;
+      this.statusBarItem.tooltip = tooltip;
+    } else if (totalUpdates > 0 || totalWarnings > 0 || totalVulnerabilities > 0) {
       const parts: string[] = [];
       if (totalUpdates > 0) parts.push(`${totalUpdates} update${totalUpdates > 1 ? "s" : ""}`);
       if (totalWarnings > 0) parts.push(`${totalWarnings} warning${totalWarnings > 1 ? "s" : ""}`);
+      if (totalVulnerabilities > 0) parts.push(`${totalVulnerabilities} vulnerabilit${totalVulnerabilities > 1 ? "ies" : "y"}`);
 
       this.statusBarItem.text = `🐻 ModBear: ${parts.join(", ")}`;
-      const tooltip = new vscode.MarkdownString(
-        `ModBear dependency analysis completed.\n- Updates: ${totalUpdates}\n- Warnings: ${totalWarnings}\n\nClick for actions.`,
-        true
-      );
+      let tooltipText = `ModBear dependency analysis completed.\n- Updates: ${totalUpdates}\n- Warnings: ${totalWarnings}\n- Vulnerabilities: ${totalVulnerabilities}`;
+      if (hasUnavailableVulnerabilities) {
+        tooltipText += `\n- Vulnerability analysis: Unavailable`;
+      }
+      tooltipText += `\n\nClick for actions.`;
+      const tooltip = new vscode.MarkdownString(tooltipText, true);
+      tooltip.isTrusted = true;
+      this.statusBarItem.tooltip = tooltip;
+    } else if (hasUnavailableVulnerabilities) {
+      this.statusBarItem.text = "$(question) ModBear: Vulnerability analysis unavailable";
+      const tooltip = new vscode.MarkdownString("Vulnerability analysis is unavailable because govulncheck could not be resolved or executed.", true);
       tooltip.isTrusted = true;
       this.statusBarItem.tooltip = tooltip;
     } else {

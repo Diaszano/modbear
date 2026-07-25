@@ -5,6 +5,9 @@ import type { ModuleContext } from "../../domain/module";
 import type { ScanCoordinator } from "../../orchestration/scanCoordinator";
 import { DependencyInlayHintsProvider } from "../../providers/dependencyInlayHintsProvider";
 import { DependencyHoverProvider } from "../../providers/dependencyHoverProvider";
+import { GoModDocumentCache } from "../../parsers/goModDocumentCache";
+
+const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
 
 suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
   test("places the available version immediately after the installed version", async () => {
@@ -34,10 +37,12 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         }
       ],
       replacements: [],
+      vulnerabilities: notRunVulnerabilities,
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
-    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined);
+    const cache = new GoModDocumentCache();
+    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined, cache);
     const hints = provider.provideInlayHints(document);
     assert.equal(hints.length, 1);
     assert.equal(hints[0]?.position.line, 2);
@@ -81,10 +86,12 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         errors: []
       }],
       replacements: [],
+      vulnerabilities: notRunVulnerabilities,
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
-    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined);
+    const cache = new GoModDocumentCache();
+    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined, cache);
 
     const hints = provider.provideInlayHints(document);
 
@@ -119,10 +126,12 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         errors: []
       }],
       replacements: [],
+      vulnerabilities: notRunVulnerabilities,
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
-    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined);
+    const cache = new GoModDocumentCache();
+    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined, cache);
     Object.defineProperty(vscode.workspace, "isTrusted", {
       configurable: true,
       get: () => false
@@ -168,10 +177,12 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         }
       ],
       replacements: [],
+      vulnerabilities: notRunVulnerabilities,
       errors: []
     };
     const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
-    const hoverProvider = new DependencyHoverProvider(coordinator, () => module);
+    const cache = new GoModDocumentCache();
+    const hoverProvider = new DependencyHoverProvider(coordinator, () => module, cache);
 
     const versionIndex = document.lineAt(2).text.indexOf("v1.9.1");
     const hover = hoverProvider.provideHover(document, new vscode.Position(2, versionIndex + 1));
@@ -181,5 +192,216 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
     assert.ok(markdown.value.includes("github.com/gin-gonic/gin"));
     assert.ok(markdown.value.includes("v1.10.1"));
     assert.ok(markdown.value.includes("go get github.com/gin-gonic/gin@v1.10.1"));
+  });
+
+  test("provides hover text indicating vulnerability analysis is unavailable", async () => {
+    const document = await vscode.workspace.openTextDocument({
+      language: "go.mod",
+      content: "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.9.1\n"
+    });
+    const module: ModuleContext = {
+      id: "/workspace/app",
+      moduleRoot: "/workspace/app",
+      goModPath: document.uri.fsPath
+    };
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: module.id,
+      contentHash: "fixture",
+      createdAt: new Date(0).toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: [
+        {
+          modulePath: "github.com/gin-gonic/gin",
+          installedVersion: "v1.9.1",
+          retractionRationales: [],
+          errors: []
+        }
+      ],
+      replacements: [],
+      vulnerabilities: {
+        state: "unavailable",
+        findings: [],
+        advisories: {},
+        errors: [{ code: "tool-not-found", message: "Vulnerability analysis is unavailable." }]
+      },
+      errors: []
+    };
+    const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+    const cache = new GoModDocumentCache();
+    const hoverProvider = new DependencyHoverProvider(coordinator, () => module, cache);
+
+    const versionIndex = document.lineAt(2).text.indexOf("v1.9.1");
+    const hover = hoverProvider.provideHover(document, new vscode.Position(2, versionIndex + 1));
+    assert.ok(hover);
+    const markdown = hover.contents[0] as vscode.MarkdownString;
+    assert.ok(markdown.value.includes("Vulnerability analysis unavailable"));
+  });
+
+  test("provides hover showing vulnerability details when analysis is complete", async () => {
+    const document = await vscode.workspace.openTextDocument({
+      language: "go.mod",
+      content: "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.9.1\n"
+    });
+    const module: ModuleContext = {
+      id: "/workspace/app",
+      moduleRoot: "/workspace/app",
+      goModPath: document.uri.fsPath
+    };
+    const advisories = {
+      "GO-2026-0001": { id: "GO-2026-0001", summary: "Some critical vulnerability details" }
+    };
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: module.id,
+      contentHash: "fixture",
+      createdAt: new Date(0).toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: [
+        {
+          modulePath: "github.com/gin-gonic/gin",
+          installedVersion: "v1.9.1",
+          retractionRationales: [],
+          errors: []
+        }
+      ],
+      replacements: [],
+      vulnerabilities: {
+        state: "complete",
+        findings: [
+          {
+            osvId: "GO-2026-0001",
+            fixedVersion: "v1.10.0",
+            classification: "reachable",
+            trace: [{ module: "github.com/gin-gonic/gin", version: "v1.9.1" }]
+          }
+        ],
+        advisories,
+        errors: []
+      },
+      errors: []
+    };
+    const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+    const cache = new GoModDocumentCache();
+    const hoverProvider = new DependencyHoverProvider(coordinator, () => module, cache);
+
+    const versionIndex = document.lineAt(2).text.indexOf("v1.9.1");
+    const hover = hoverProvider.provideHover(document, new vscode.Position(2, versionIndex + 1));
+    assert.ok(hover);
+    const markdown = hover.contents[0] as vscode.MarkdownString;
+    assert.ok(markdown.value.includes("GO-2026-0001"));
+    assert.ok(markdown.value.includes("reachable"));
+    assert.ok(markdown.value.includes("Some critical vulnerability details"));
+    assert.ok(markdown.value.includes("Fixed in: `v1.10.0`"));
+  });
+
+  test("returns empty inlay hints when modBear.enabled is false", async () => {
+    const config = vscode.workspace.getConfiguration("modBear");
+    const originalEnabled = config.get("enabled");
+    await config.update("enabled", false, vscode.ConfigurationTarget.Global);
+
+    try {
+      const document = await vscode.workspace.openTextDocument({
+        language: "go.mod",
+        content: "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.9.1\n"
+      });
+      const module: ModuleContext = {
+        id: "/workspace/app",
+        moduleRoot: "/workspace/app",
+        goModPath: document.uri.fsPath
+      };
+      const snapshot: ModuleAnalysisSnapshot = {
+        moduleId: module.id,
+        contentHash: "fixture",
+        createdAt: new Date(0).toISOString(),
+        stale: false,
+        updateState: "complete",
+        dependencies: [
+          {
+            modulePath: "github.com/gin-gonic/gin",
+            installedVersion: "v1.9.1",
+            availableVersion: "v1.10.1",
+            updateKind: "minor",
+            retractionRationales: [],
+            errors: []
+          }
+        ],
+        replacements: [],
+        vulnerabilities: notRunVulnerabilities,
+        errors: []
+      };
+      const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+      const cache = new GoModDocumentCache();
+      const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined, cache);
+
+      const hints = provider.provideInlayHints(document);
+      assert.equal(hints.length, 0, "No inlay hints should be returned when extension is disabled");
+      provider.dispose();
+    } finally {
+      await config.update("enabled", originalEnabled, vscode.ConfigurationTarget.Global);
+    }
+  });
+
+  test("uses O(N) map lookup complexity rather than O(N^2) scan", async () => {
+    const document = await vscode.workspace.openTextDocument({
+      language: "go.mod",
+      content: [
+        "module example.com/app",
+        "",
+        ...Array.from({ length: 100 }, (_, i) => `require example.com/mod-${i} v1.0.${i}`)
+      ].join("\n")
+    });
+
+    const module: ModuleContext = {
+      id: "/workspace/app",
+      moduleRoot: "/workspace/app",
+      goModPath: document.uri.fsPath
+    };
+
+    let findCalls = 0;
+    let mapCalls = 0;
+
+    const rawDeps = Array.from({ length: 100 }, (_, i) => ({
+      modulePath: `example.com/mod-${i}`,
+      installedVersion: `v1.0.${i}`,
+      availableVersion: `v1.0.${i + 1}`,
+      updateKind: "minor" as const,
+      retractionRationales: [],
+      errors: []
+    }));
+
+    const dependenciesProxy = new Proxy(rawDeps, {
+      get(target, prop, receiver) {
+        if (prop === "find") {
+          findCalls++;
+        }
+        if (prop === "map") {
+          mapCalls++;
+        }
+        return Reflect.get(target, prop, receiver);
+      }
+    });
+
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: module.id,
+      contentHash: "fixture",
+      createdAt: new Date(0).toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: dependenciesProxy,
+      replacements: [],
+      vulnerabilities: notRunVulnerabilities,
+      errors: []
+    };
+
+    const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+    const cache = new GoModDocumentCache();
+    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined, cache);
+
+    const hints = provider.provideInlayHints(document);
+    assert.equal(hints.length, 100);
+    assert.equal(findCalls, 0, "Should not use .find in a loop");
+    assert.equal(mapCalls, 1, "Should construct Map exactly once");
+    provider.dispose();
   });
 });

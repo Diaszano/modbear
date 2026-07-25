@@ -47,9 +47,10 @@ Log outputs (sent to VS Code Output Channels or diagnostic logs) are sanitized t
 
 ModBear strictly adheres to VS Code Workspace Trust specifications:
 
-- **Restricted Mode in Untrusted Workspaces**: If a workspace is untrusted (`vscode.workspace.isTrusted === false`), all subprocess execution is completely disabled.
+- **Restricted Mode in Untrusted Workspaces**: If a workspace is untrusted (`vscode.workspace.isTrusted === false`), all subprocess execution (including `go` and `govulncheck`) is completely disabled.
 - **No Background Operations**: In untrusted workspaces, background scans, auto-discovery, and toolchain invocations are prevented.
-- **Restricted Configuration Settings**: Executable path configurations (`modBear.go.path`, `modBear.govulncheck.path`, `modBear.vulnerability.database`) are marked with `"scope": "window"` and restricted capabilities so untrusted workspaces cannot redirect execution to malicious binaries.
+- **Restricted Configuration Settings**: The Go and govulncheck executable path configurations (`modBear.go.path`, `modBear.govulncheck.path`) are marked with `"scope": "window"` and restricted capabilities so untrusted workspaces cannot redirect execution to malicious binaries.
+- **Vulnerability Advisory Safety**: All vulnerability advisory text displayed in hover cards is escaped using the Markdown escaping function, and the hover webview forces `MarkdownString.isTrusted = false` to mitigate command injection risks.
 
 ## 5. Test-Fixture Hash Invariant
 
@@ -57,3 +58,11 @@ To ensure testing integrity and guarantee that extension tests do not cause disk
 
 - **Fixture Hash Invariant**: Test fixtures under `src/test/fixtures/` must remain bit-for-bit identical before and after test execution.
 - Integration tests verify SHA-256 checksums of `go.mod`, `go.sum`, and `go.work` fixture files to confirm zero on-disk mutations occur during scanner runs or test suite execution.
+
+## 6. Privacy & Telemetry-Free Logging
+
+ModBear enforces a strict privacy policy:
+- **Zero Remote Telemetry**: The extension contains no telemetry, telemetry libraries, analytics collection, or remote tracking. No data is ever transmitted to external endpoints.
+- **Local Logging**: Log events (such as `scan.started`, `scan.finished`, `scan.failed`, and `scan.cancelled`) are only recorded locally to the VS Code Output Channel.
+- **Verbosity Enforcement**: Logging is strictly gated by the `modBear.output.logLevel` configuration.
+- **Aggregated / Redacted Fields**: Emitted lifecycle logs contain only redacted or aggregated metadata (e.g. durations, dependency counts, cache states). Private identifiers (such as raw paths, passwords, and private module paths) are filtered out prior to logging.

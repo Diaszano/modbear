@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 
 export interface ProcessOptions {
   readonly executable: string;
@@ -9,6 +9,8 @@ export interface ProcessOptions {
   readonly stdoutLimitBytes: number;
   readonly stderrLimitBytes: number;
   readonly signal?: AbortSignal;
+  readonly onStdoutChunk?: (chunk: Buffer) => void;
+  readonly collectStdout?: boolean;
 }
 
 export interface ProcessResult {
@@ -22,11 +24,58 @@ export interface ProcessResult {
 export class ProcessExecutionError extends Error {
   public constructor(
     message: string,
-    public readonly kind: "spawn" | "timeout" | "cancelled" | "output-limit",
-    public readonly cause?: unknown
+    public readonly kind: "spawn" | "timeout" | "cancelled" | "output-limit" | "exit-nonzero",
+    public readonly cause?: unknown,
+    public readonly result?: ProcessResult
   ) {
     super(message);
     this.name = "ProcessExecutionError";
+  }
+}
+
+function killChild(child: ChildProcess): void {
+  try {
+    child.kill("SIGKILL");
+  } catch {
+    // The child may already have exited.
+  }
+}
+
+async function terminateProcessTree(child: ChildProcess): Promise<void> {
+  if (child.pid === undefined) return;
+
+  if (process.platform === "win32") {
+    await new Promise<void>((resolve) => {
+      let complete = false;
+      const finish = (): void => {
+        if (complete) return;
+        complete = true;
+        resolve();
+      };
+
+      try {
+        const taskkill = spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+          shell: false,
+          windowsHide: true,
+          stdio: "ignore"
+        });
+        taskkill.once("error", () => {
+          killChild(child);
+          finish();
+        });
+        taskkill.once("close", finish);
+      } catch {
+        killChild(child);
+        finish();
+      }
+    });
+    return;
+  }
+
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch (error: unknown) {
+    if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) return;
   }
 }
 
@@ -43,6 +92,7 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
       env: options.env,
       shell: false,
       windowsHide: true,
+      detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"]
     });
 
@@ -57,32 +107,37 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
       options.signal?.removeEventListener("abort", onAbort);
     };
 
-    const finishReject = (error: ProcessExecutionError): void => {
+    const finishReject = async (error: ProcessExecutionError): Promise<void> => {
       if (settled) return;
       settled = true;
       cleanup();
-      child.kill("SIGKILL");
+      await terminateProcessTree(child);
       reject(error);
     };
 
     const timer = setTimeout(() => {
-      finishReject(new ProcessExecutionError(`Process timed out after ${options.timeoutMs}ms`, "timeout"));
+      void finishReject(new ProcessExecutionError(`Process timed out after ${options.timeoutMs}ms`, "timeout"));
     }, options.timeoutMs);
 
     const onAbort = (): void => {
-      finishReject(new ProcessExecutionError("Process cancelled", "cancelled"));
+      void finishReject(new ProcessExecutionError("Process cancelled", "cancelled"));
     };
     options.signal?.addEventListener("abort", onAbort, { once: true });
 
     child.on("error", (error) => {
-      finishReject(new ProcessExecutionError(`Failed to start ${options.executable}`, "spawn", error));
+      void finishReject(new ProcessExecutionError(`Failed to start ${options.executable}`, "spawn", error));
     });
 
     child.stdout.on("data", (chunk: Buffer) => {
-      stdoutChunks.push(chunk);
+      if (options.collectStdout !== false) {
+        stdoutChunks.push(chunk);
+      }
       stdoutBytes += chunk.length;
       if (stdoutBytes > options.stdoutLimitBytes) {
-        finishReject(new ProcessExecutionError("Process stdout exceeded the configured limit", "output-limit"));
+        void finishReject(new ProcessExecutionError("Process stdout exceeded the configured limit", "output-limit"));
+      }
+      if (options.onStdoutChunk) {
+        options.onStdoutChunk(chunk);
       }
     });
 
@@ -90,7 +145,7 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
       stderrChunks.push(chunk);
       stderrBytes += chunk.length;
       if (stderrBytes > options.stderrLimitBytes) {
-        finishReject(new ProcessExecutionError("Process stderr exceeded the configured limit", "output-limit"));
+        void finishReject(new ProcessExecutionError("Process stderr exceeded the configured limit", "output-limit"));
       }
     });
 
@@ -101,7 +156,7 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
       resolve({
         exitCode,
         signal,
-        stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+        stdout: options.collectStdout !== false ? Buffer.concat(stdoutChunks).toString("utf8") : "",
         stderr: Buffer.concat(stderrChunks).toString("utf8"),
         durationMs: Date.now() - started
       });

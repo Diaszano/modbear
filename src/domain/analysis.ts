@@ -1,4 +1,6 @@
 import type { UpdateKind } from "./dependency";
+import type { VulnerabilityAnalysis } from "./vulnerability";
+import { ProcessExecutionError } from "../execution/processRunner";
 
 export type AnalysisErrorCode =
   | "tool-not-found"
@@ -49,12 +51,44 @@ export interface ModuleAnalysisSnapshot {
   readonly updateState: AnalyzerState;
   readonly dependencies: readonly DependencyStatus[];
   readonly replacements: readonly ReplacementStatus[];
+  readonly vulnerabilities: VulnerabilityAnalysis;
   readonly errors: readonly AnalysisError[];
 }
 
 export interface SnapshotMetrics {
   readonly updates: number;
   readonly warnings: number;
+}
+
+export function classifyAnalysisError(error: unknown): AnalysisErrorCode {
+  if (error instanceof ProcessExecutionError) {
+    switch (error.kind) {
+      case "spawn": {
+        const code = getErrorCode(error.cause);
+        return code === "EACCES" || code === "EPERM" ? "permission-denied" : "tool-not-found";
+      }
+      case "timeout":
+        return "timeout";
+      case "cancelled":
+        return "cancelled";
+      case "output-limit":
+        return "output-limit";
+      case "exit-nonzero":
+        return "unknown";
+    }
+  }
+
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  if (/network|econn|enotfound|eai_again/.test(message)) return "network";
+  if (/permission denied|eacces|eperm/.test(message)) return "permission-denied";
+  if (/not found|enoent/.test(message)) return "tool-not-found";
+  return "unknown";
+}
+
+function getErrorCode(error: unknown): string | undefined {
+  return error instanceof Error && "code" in error && typeof error.code === "string"
+    ? error.code
+    : undefined;
 }
 
 export function getSnapshotMetrics(snapshot: ModuleAnalysisSnapshot): SnapshotMetrics {
@@ -70,6 +104,4 @@ export function getSnapshotMetrics(snapshot: ModuleAnalysisSnapshot): SnapshotMe
   }
   return { updates, warnings };
 }
-
-
 

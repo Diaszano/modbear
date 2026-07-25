@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { ScanCoordinator } from "../../orchestration/scanCoordinator";
 import { AnalysisCache } from "../../cache/analysisCache";
+import { ModuleScanner } from "../../orchestration/moduleScanner";
+import { createCacheKey } from "../../cache/cacheKey";
 import type { ModuleAnalysisSnapshot } from "../../domain/analysis";
 import type { ModuleContext } from "../../domain/module";
+
+const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
 
 const dummyModule: ModuleContext = {
   id: "mod-1",
@@ -22,6 +26,7 @@ const mockSnapshot: ModuleAnalysisSnapshot = {
   updateState: "complete",
   dependencies: [],
   replacements: [],
+  vulnerabilities: notRunVulnerabilities,
   errors: []
 };
 
@@ -65,7 +70,13 @@ test("ScanCoordinator emits snapshot event when scan finishes", async () => {
 });
 
 test("ScanCoordinator cancels superseded scans", async () => {
-  const coordinator = new ScanCoordinator();
+  const loggedEvents: { level: string; name: string; fields: any }[] = [];
+  const mockLogger = {
+    event(level: string, name: string, fields: any) {
+      loggedEvents.push({ level, name, fields });
+    }
+  } as any;
+  const coordinator = new ScanCoordinator(() => 2, mockLogger);
   let firstAborted = false;
 
   const firstScan = coordinator.scanModule({
@@ -92,10 +103,17 @@ test("ScanCoordinator cancels superseded scans", async () => {
 
   assert.ok(firstAborted);
   assert.deepEqual(result, mockSnapshot);
+  assert.ok(loggedEvents.some(e => e.name === "scan.cancelled" && e.level === "debug"));
 });
 
 test("ScanCoordinator dispose aborts active scans", async () => {
-  const coordinator = new ScanCoordinator();
+  const loggedEvents: { level: string; name: string; fields: any }[] = [];
+  const mockLogger = {
+    event(level: string, name: string, fields: any) {
+      loggedEvents.push({ level, name, fields });
+    }
+  } as any;
+  const coordinator = new ScanCoordinator(() => 2, mockLogger);
   let aborted = false;
 
   const scan = coordinator.scanModule({
@@ -113,6 +131,7 @@ test("ScanCoordinator dispose aborts active scans", async () => {
   coordinator.dispose();
   await assert.rejects(scan, { message: "Scan cancelled" });
   assert.ok(aborted);
+  assert.ok(loggedEvents.some(e => e.name === "scan.cancelled" && e.level === "debug"));
 });
 
 test("ScanCoordinator stores and emits fallback failed snapshot on non-abort error", async () => {
@@ -134,10 +153,47 @@ test("ScanCoordinator stores and emits fallback failed snapshot on non-abort err
   assert.ok(snapshot);
   assert.equal(snapshot.updateState, "failed");
   assert.equal(snapshot.errors.length, 1);
-  assert.equal(snapshot.errors[0]?.message, "go list command failed");
+  assert.equal(snapshot.errors[0]?.code, "unknown");
+  assert.equal(snapshot.errors[0]?.message, "Dependency analysis failed.");
 
   assert.equal(emitted.length, 1);
   assert.equal(emitted[0]?.updateState, "failed");
+});
+
+test("retains the last successful snapshot as stale when refresh fails", async () => {
+  const coordinator = new ScanCoordinator();
+  await coordinator.scanModule({ module: dummyModule, contentHash: "ok", run: async () => mockSnapshot });
+  await assert.rejects(coordinator.scanModule({
+    module: dummyModule,
+    contentHash: "new",
+    run: async () => { throw new Error("network unavailable"); }
+  }));
+  const snapshot = coordinator.getSnapshot(dummyModule.id)!;
+  assert.equal(snapshot.stale, true);
+  assert.equal(snapshot.updateState, "partial");
+  assert.deepEqual(snapshot.dependencies, mockSnapshot.dependencies);
+  assert.equal(snapshot.errors[0]?.code, "network");
+});
+
+test("keeps an initial failed snapshot failed when the next scan also fails", async () => {
+  const coordinator = new ScanCoordinator();
+
+  await assert.rejects(coordinator.scanModule({
+    module: dummyModule,
+    contentHash: "first-failure",
+    run: async () => { throw new Error("first failure"); }
+  }));
+  await assert.rejects(coordinator.scanModule({
+    module: dummyModule,
+    contentHash: "second-failure",
+    run: async () => { throw new Error("second failure"); }
+  }));
+
+  const snapshot = coordinator.getSnapshot(dummyModule.id)!;
+  assert.equal(snapshot.stale, false);
+  assert.equal(snapshot.updateState, "failed");
+  assert.equal(snapshot.contentHash, "second-failure");
+  assert.deepEqual(snapshot.dependencies, []);
 });
 
 test("AnalysisCache stores and retrieves snapshots from disk", async () => {
@@ -153,6 +209,90 @@ test("AnalysisCache stores and retrieves snapshots from disk", async () => {
 
     await cache.delete("key-1");
     assert.equal(await cache.get("key-1"), undefined);
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("ScanCoordinator and ModuleScanner emit structured scan lifecycle events", async () => {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "modbear-test-coordinator-events-"));
+  try {
+    const goModPath = path.join(tmpDir, "go.mod");
+    const goModContent = "module example.com/test\n\ngo 1.22\n\nrequire example.com/foo v1.0.0\n";
+    await writeFile(goModPath, goModContent);
+
+    const cache = new AnalysisCache(path.join(tmpDir, "cache"));
+    const loggedEvents: { level: string; name: string; fields: string }[] = [];
+
+    const logger = {
+      event(level: string, name: string, fields: Record<string, string | number | boolean>) {
+        const body = Object.entries(fields).map(([k,v]) => `${k}=${v}`).join(" ");
+        loggedEvents.push({ level, name, fields: `${name}${body ? ` ${body}` : ""}` });
+      },
+      command(executable: string, args: readonly string[], cwd: string) {
+        // no-op
+      }
+    } as any;
+
+    const scanner = new ModuleScanner(cache, "invalid-go", 5000, 60000, logger);
+    const coordinator = new ScanCoordinator(() => 2, logger);
+
+    const moduleContext = {
+      id: "test-module",
+      moduleRoot: tmpDir,
+      goModPath
+    };
+
+    // First scan: cache miss, fails because of invalid-go
+    const request = {
+      module: moduleContext,
+      contentHash: "hash-event-miss",
+      run: (signal: AbortSignal) => scanner.scan(moduleContext, signal)
+    };
+
+    await assert.rejects(coordinator.scanModule(request));
+
+    assert.ok(loggedEvents.some(e => e.name === "scan.started" && e.fields.includes("cache=miss") && e.level === "info"));
+    assert.ok(loggedEvents.some(e => e.name === "scan.failed" && e.fields.includes("kind=spawn") && e.level === "error"));
+
+    // Now populate cache using the contentHash to get a cache hit
+    const contentHash = createCacheKey({
+      moduleRoot: tmpDir,
+      goMod: goModContent,
+      goSum: "",
+      goWork: "",
+      goExecutable: "invalid-go",
+      timeoutMs: 5000,
+      vulnerability: undefined
+    });
+
+    const mockSnapshot: ModuleAnalysisSnapshot = {
+      moduleId: "test-module",
+      contentHash,
+      createdAt: new Date().toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: [],
+      replacements: [],
+      vulnerabilities: { state: "not-run", findings: [], advisories: {}, errors: [] },
+      errors: []
+    };
+
+    await cache.set(contentHash, mockSnapshot);
+    loggedEvents.length = 0;
+
+    // Second scan: cache hit, success
+    const requestHit = {
+      module: moduleContext,
+      contentHash,
+      run: (signal: AbortSignal) => scanner.scan(moduleContext, signal)
+    };
+
+    const result = await coordinator.scanModule(requestHit);
+    assert.deepEqual(result, mockSnapshot);
+
+    assert.ok(loggedEvents.some(e => e.name === "scan.started" && e.fields.includes("cache=hit") && e.level === "info"));
+    assert.ok(loggedEvents.some(e => e.name === "scan.finished" && e.fields.includes("outcome=success") && e.fields.includes("cache=hit") && e.level === "info"));
   } finally {
     await rm(tmpDir, { recursive: true, force: true });
   }

@@ -1,0 +1,4 @@
+{"config":{"protocol_version":"v1.2.0","scanner_name":"govulncheck","future_config":"ignored"},"future_message":{"enabled":true}}
+{"progress":{"message":"Scanning","future_progress":"ignored"}}
+{"osv":{"id":"GO-2026-0002","summary":"Known advisory","details":"Known details","future_advisory":"ignored"}}
+{"finding":{"osv":"GO-2026-0002","fixed_version":"v1.0.1","trace":[{"module":"example.com/library","version":"v1.0.0","package":"example.com/library","function":"Run","future_frame":"ignored","position":{"filename":"/workspace/library.go","line":3,"column":1,"future_position":"ignored"}}],"future_finding":"ignored"}}
