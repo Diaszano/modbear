@@ -61,7 +61,7 @@ export class ModuleScanner {
         module.goWorkPath ? readFile(module.goWorkPath, "utf8").catch(() => "") : Promise.resolve(""),
         getGoVersion(this.goExecutable).catch(() => "")
       ]);
-      const tidyEligible = this.health.tidyEnabled && trigger !== "background";
+      const tidyEligible = this.health.tidyEnabled && (trigger === "save" || trigger === "manual");
       contentHash = createCacheKey({
         moduleRoot: module.moduleRoot,
         goMod,

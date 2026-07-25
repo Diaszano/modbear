@@ -3,7 +3,7 @@ import test from "node:test";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { ModuleScanner } from "../../orchestration/moduleScanner";
+import { ModuleScanner, type ScanTrigger } from "../../orchestration/moduleScanner";
 import { AnalysisCache } from "../../cache/analysisCache";
 import { VulnerabilityCoordinator } from "../../analyzers/vulnerabilityAnalyzer";
 import type { Logger } from "../../logging/logger";
@@ -85,6 +85,10 @@ if (command === "mod" && args[0] === "tidy") fs.writeFileSync(${JSON.stringify(t
     assert.equal(background.vulnerabilities.state, "unavailable");
     assert.equal(background.dependencies.length, 1);
     assert.equal(background.updateState, "partial");
+
+    const unknown = await scanner.scan(module, new AbortController().signal, "unexpected" as ScanTrigger);
+    assert.equal(await readFile(tidyCallsPath, "utf8"), "0");
+    assert.equal(unknown.tidy.state, "idle");
 
     const saved = await scanner.scan(module, new AbortController().signal, "save");
     assert.equal(await readFile(tidyCallsPath, "utf8"), "1");

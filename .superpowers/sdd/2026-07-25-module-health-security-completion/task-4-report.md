@@ -42,3 +42,27 @@ Independent review found and verified fixes for vulnerability-unavailable aggreg
 - Cache identity carries the executable/version identity and health configuration; stale cache snapshots lacking required phase results are rejected.
 - Extension trust guards remain ahead of tool resolution and scanning, so untrusted workspaces do not invoke child processes.
 - No virtual-document, hover, inlay-priority, or new command-manifest UI work was introduced.
+
+## Fix round 1 — fail-closed tidy triggers
+
+### TDD evidence
+
+- RED: `npm run compile && node --test out/test/unit/moduleScanner.test.js` failed at `ModuleScanner skips tidy for background scans and preserves other phase results`: an `"unexpected" as ScanTrigger` scan incremented the tidy counter to `1` instead of retaining `0`.
+- GREEN: the same focused command passed (3 passing) after replacing the fail-open `trigger !== "background"` check with the explicit `trigger === "save" || trigger === "manual"` allow-list.
+
+### Verification
+
+- `npm run test:unit` — 105 passing.
+- `npm run test:integration` — 11 passing.
+- `npm run test:extension` — 39 passing.
+- `git diff --check` — passed.
+
+### Files
+
+- `src/orchestration/moduleScanner.ts`: make tidy eligibility fail closed for unknown runtime trigger values without changing save/manual cache eligibility.
+- `src/test/unit/moduleScanner.test.ts`: verify an unexpected trigger leaves tidy idle and does not invoke `go mod tidy -diff`.
+- This report.
+
+### Commit
+
+`fix: fail closed tidy scan triggers`
