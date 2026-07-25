@@ -82,9 +82,14 @@
 
   Expected: FAIL because the current `.vscodeignore` is not an explicit ModBear allowlist.
 
-- [ ] **Step 5: Keep the policy tests uncommitted until their implementing tasks pass**
+- [ ] **Step 5: Commit the red policy tests for task-scoped review**
 
-  These assertions intentionally span the runtime, package, CI/CD, and governance work. Do not create a red commit. Carry both test files into the responsible tasks below; Task 6 is the first point at which `npm run test:release` must be fully green.
+  These assertions intentionally span the runtime, package, CI/CD, and governance work, so their commands remain red until later tasks implement the policy. Commit them now to preserve TDD evidence and enable task-scoped diff review; Task 6 is the first point at which `npm run test:release` must be fully green.
+
+  ```bash
+  git add scripts/test-release-config.mjs scripts/test-package-config.mjs package.json
+  git commit -m "test: define delivery policy contracts"
+  ```
 
 ### Task 2: Upgrade runtime and build-tooling foundations
 
