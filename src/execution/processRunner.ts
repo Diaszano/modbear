@@ -25,7 +25,7 @@ export class ProcessExecutionError extends Error {
   public constructor(
     message: string,
     public readonly kind: "spawn" | "timeout" | "cancelled" | "output-limit" | "exit-nonzero",
-    public readonly cause?: unknown,
+    public override readonly cause?: unknown,
     public readonly result?: ProcessResult
   ) {
     super(message);
