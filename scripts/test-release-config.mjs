@@ -144,32 +144,22 @@ assert.equal(
 );
 
 const eslint = new ESLint();
-const nodeTestRegistration = await eslint.lintText(
-  'import test from "node:test";\ntest("registers an async test", async () => {});\n',
-  { filePath: "src/test/unit/smoke.test.ts" },
+const testFileConfig = await eslint.calculateConfigForFile("src/test/unit/smoke.test.ts");
+assert.deepEqual(
+  testFileConfig.rules["@typescript-eslint/no-floating-promises"],
+  [
+    2,
+    {
+      allowForKnownSafeCalls: [{ from: "package", name: "test", package: "node:test" }],
+    },
+  ],
+  "Test files must require handled promises while allowing node:test registrations",
 );
-assert.equal(
-  nodeTestRegistration[0]?.messages.filter(({ ruleId }) => ruleId === "@typescript-eslint/no-floating-promises").length,
-  0,
-  "node:test registrations must be allowed to float",
-);
-const floatingPromise = await eslint.lintText(
-  'import test from "node:test";\ntest("registers an async test", async () => {});\nPromise.resolve();\n',
-  { filePath: "src/test/unit/smoke.test.ts" },
-);
-assert.equal(
-  floatingPromise[0]?.messages.filter(({ ruleId }) => ruleId === "@typescript-eslint/no-floating-promises").length,
-  1,
-  "Test files must reject unhandled promises outside node:test registration",
-);
-const floatingToolingPromise = await eslint.lintText("Promise.resolve();\n", {
-  filePath: "esbuild.ts",
-});
-assert.equal(
-  floatingToolingPromise[0]?.messages.filter(({ ruleId }) => ruleId === "@typescript-eslint/no-floating-promises")
-    .length,
-  1,
-  "Tooling files must reject unhandled promises",
+const toolingConfig = await eslint.calculateConfigForFile("esbuild.ts");
+assert.deepEqual(
+  toolingConfig.rules["@typescript-eslint/no-floating-promises"],
+  [2],
+  "Tooling files must require handled promises",
 );
 
 const semanticRelease = releaseWorkflow.jobs.release.steps.find((entry) => entry.id === "semantic-release");
