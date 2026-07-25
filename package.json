@@ -60,6 +60,18 @@
         "title": "ModBear: Show Dependency Details"
       },
       {
+        "command": "modBear.explainDependency",
+        "title": "ModBear: Explain Dependency"
+      },
+      {
+        "command": "modBear.openAdvisory",
+        "title": "ModBear: Open Vulnerability Advisory"
+      },
+      {
+        "command": "modBear.showTidyDiff",
+        "title": "ModBear: Show Tidy Diff"
+      },
+      {
         "command": "modBear.copySuggestion",
         "title": "ModBear: Copy Suggested Command"
       },

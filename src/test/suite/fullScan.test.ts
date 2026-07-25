@@ -3,9 +3,57 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { AnalysisCache } from "../../cache/analysisCache";
+import { buildSnapshotDiagnostics } from "../../extension";
 import { ModuleScanner } from "../../orchestration/moduleScanner";
+import { parseGoModPositions } from "../../parsers/goModPositionParser";
 
 suite("full scan composition", () => {
+  test("merges update, lifecycle, vulnerability, tidy, and toolchain diagnostics into one snapshot result", () => {
+    const parsed = parseGoModPositions([
+      "module example.com/app",
+      "",
+      "go 1.25.0",
+      "toolchain go1.26.0",
+      "",
+      "require example.com/library v1.0.0"
+    ].join("\n"));
+    const diagnostics = buildSnapshotDiagnostics(parsed, {
+      dependencies: [{
+        modulePath: "example.com/library",
+        installedVersion: "v1.0.0",
+        availableVersion: "v1.1.0",
+        updateKind: "minor",
+        deprecatedMessage: "use example.com/maintained",
+        retractionRationales: ["bad release"],
+        errors: []
+      }],
+      replacements: [],
+      vulnerabilities: {
+        state: "complete",
+        findings: [{
+          osvId: "GO-2026-0001",
+          classification: "reachable",
+          fixedVersion: "v1.2.0",
+          trace: [{ module: "example.com/library", version: "v1.0.0" }]
+        }],
+        advisories: { "GO-2026-0001": { id: "GO-2026-0001", summary: "Critical finding" } },
+        errors: []
+      },
+      tidy: { state: "complete", consistent: false, diff: "diff --git a/go.mod b/go.mod", errors: [] },
+      toolchain: { state: "complete", installed: "go1.24.0", required: "1.25.0", suggested: "go1.26.0", errors: [] }
+    }, "warning");
+
+    assert.deepEqual(diagnostics.map((item) => item.code).sort(), [
+      "GO-2026-0001",
+      "deprecated",
+      "go-version",
+      "retracted",
+      "tidy-diff",
+      "toolchain-version",
+      "update-available"
+    ]);
+  });
+
   test("runs tidy only for a manual scan while retaining update and toolchain results", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "modbear-full-scan-"));
     try {
