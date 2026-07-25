@@ -7,6 +7,123 @@ import { analyzeCommits } from '@semantic-release/commit-analyzer';
 import { load } from 'js-yaml';
 
 const config = JSON.parse(await readFile('.releaserc.json', 'utf8'));
+const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
+const packageLock = JSON.parse(await readFile('package-lock.json', 'utf8'));
+const nvmrc = (await readFile('.nvmrc', 'utf8')).trim();
+const [ciWorkflow, releaseWorkflow, prTitleWorkflow, dependabot, codeowners, prTemplate, bugReport, featureRequest, issueConfig] =
+  await Promise.all([
+    readFile('.github/workflows/ci.yml', 'utf8').then(load),
+    readFile('.github/workflows/release.yml', 'utf8').then(load),
+    readFile('.github/workflows/pr-title.yml', 'utf8').then(load),
+    readFile('.github/dependabot.yml', 'utf8').then(load),
+    readFile('.github/CODEOWNERS', 'utf8'),
+    readFile('.github/pull_request_template.md', 'utf8'),
+    readFile('.github/ISSUE_TEMPLATE/bug_report.yml', 'utf8').then(load),
+    readFile('.github/ISSUE_TEMPLATE/feature_request.yml', 'utf8').then(load),
+    readFile('.github/ISSUE_TEMPLATE/config.yml', 'utf8').then(load),
+  ]);
+
+assert.equal(packageJson.engines.node, '>=24 <25');
+assert.equal(packageJson.engines.vscode, '^1.125.0');
+assert.equal(packageLock.packages[''].engines.node, '>=24 <25');
+assert.equal(packageLock.packages[''].engines.vscode, '^1.125.0');
+assert.equal(nvmrc, '24');
+assert.equal(packageJson.scripts['check-types'], 'tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tools.json --noEmit');
+assert.equal(packageJson.scripts['test:package'], 'node scripts/test-package-config.mjs');
+
+const actionRefs = {
+  'actions/checkout': 'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0',
+  'actions/setup-node': 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
+  'actions/dependency-review-action': 'actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019',
+};
+const workflows = [ciWorkflow, releaseWorkflow, prTitleWorkflow];
+for (const workflow of workflows) {
+  for (const job of Object.values(workflow.jobs)) {
+    for (const workflowStep of job.steps ?? []) {
+      for (const [action, reference] of Object.entries(actionRefs)) {
+        if (workflowStep.uses?.startsWith(`${action}@`)) {
+          assert.equal(workflowStep.uses, reference, `${action} must be pinned to its reviewed commit`);
+        }
+      }
+      if (workflowStep.uses === actionRefs['actions/setup-node']) {
+        assert.equal(workflowStep.with?.['node-version'], 24, 'Node setup must use Node 24');
+      }
+    }
+  }
+}
+
+assert.equal(ciWorkflow.jobs.release.needs, 'quality');
+assert.deepEqual(ciWorkflow.jobs.quality.needs, ['commitlint', 'lint', 'test', 'test-release', 'build']);
+
+const semanticRelease = releaseWorkflow.jobs.release.steps.find((entry) => entry.id === 'semantic-release');
+assert.ok(semanticRelease, 'Semantic Release step missing');
+assert.equal(semanticRelease['continue-on-error'], undefined, 'Semantic Release failures must block delivery');
+
+const marketplacePublish = releaseWorkflow.jobs.release.steps.find((entry) => entry.name === 'Publish to VS Code Marketplace');
+assert.ok(marketplacePublish, 'Marketplace publication step missing');
+assert.match(
+  marketplacePublish.if,
+  /steps\.release\.outputs\.published == 'true' && steps\.marketplace\.outputs\.available == 'true'/,
+);
+
+assert.equal(codeowners, '* @diaszano\n.github/ @diaszano\n');
+assert.deepEqual(dependabot.version, 2);
+assert.deepEqual(
+  dependabot.updates.map(({ 'package-ecosystem': ecosystem, directory, schedule, 'target-branch': targetBranch }) => ({
+    ecosystem,
+    directory,
+    schedule,
+    targetBranch,
+  })),
+  [
+    {
+      ecosystem: 'npm',
+      directory: '/',
+      schedule: { interval: 'weekly', day: 'monday', time: '09:00', timezone: 'America/Sao_Paulo' },
+      targetBranch: 'dev',
+    },
+    {
+      ecosystem: 'github-actions',
+      directory: '/',
+      schedule: { interval: 'weekly', day: 'monday', time: '09:00', timezone: 'America/Sao_Paulo' },
+      targetBranch: 'dev',
+    },
+  ],
+);
+for (const term of [
+  'Conventional Commit',
+  'npm run lint',
+  'npm run check-types',
+  'npm run test:unit',
+  'npm run test:integration',
+  'npm run test:extension',
+  'npm run test:release',
+  'npm run test:package',
+  'documentation',
+]) {
+  assert.match(prTemplate, new RegExp(term, 'i'), `PR template must include ${term}`);
+}
+const fieldIds = (form) => form.body.filter((entry) => entry.id).map((entry) => entry.id);
+for (const id of [
+  'vscode-version',
+  'operating-system',
+  'go-version',
+  'go-path',
+  'govulncheck-version',
+  'govulncheck-path',
+  'modbear-version',
+  'reproduction',
+  'expected-behavior',
+  'actual-behavior',
+]) {
+  assert.ok(fieldIds(bugReport).includes(id), `Bug report must include ${id}`);
+}
+for (const id of ['problem', 'proposed-solution']) {
+  assert.ok(fieldIds(featureRequest).includes(id), `Feature request must include ${id}`);
+}
+assert.equal(issueConfig.blank_issues_enabled, false);
+assert.equal(issueConfig.contact_links[0].url, 'https://github.com/Diaszano/modbear/security/advisories/new');
+
 const plugin = (name) =>
   config.plugins.find((entry) => (Array.isArray(entry) ? entry[0] : entry) === name);
 
@@ -51,7 +168,6 @@ for (const message of [
 const npmPlugin = plugin('@semantic-release/npm');
 assert.equal(npmPlugin[1].npmPublish, false);
 
-const releaseWorkflow = load(await readFile('.github/workflows/release.yml', 'utf8'));
 assert.deepEqual(Object.keys(releaseWorkflow.on), ['workflow_call']);
 assert.deepEqual(releaseWorkflow.permissions, { contents: 'write', packages: 'write' });
 
@@ -76,7 +192,6 @@ assert.equal(
   '.github/scripts/resolve-release-tag.sh resolve "$RUNNER_TEMP/release-tags-before.txt" "$GITHUB_OUTPUT"',
 );
 
-const ciWorkflow = load(await readFile('.github/workflows/ci.yml', 'utf8'));
 assert.ok(ciWorkflow.jobs.commitlint, 'Job commitlint should exist in ci.yml');
 assert.ok(ciWorkflow.jobs.lint, 'Job lint should exist in ci.yml');
 assert.ok(ciWorkflow.jobs.test, 'Job test should exist in ci.yml');

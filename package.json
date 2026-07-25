@@ -177,6 +177,7 @@
     "test:extension": "npm run compile && npm run bundle && npm run test:extension:run",
     "test:commits": "bash .github/scripts/validate-commits.sh",
     "test:release": "node scripts/test-release-config.mjs",
+    "test:package": "node scripts/test-package-config.mjs",
     "test": "npm run compile && npm run test:unit:run && npm run test:integration:run",
     "verify": "npm run compile && npm run test:unit:run && npm run test:integration:run",
     "package": "npm run check && npm run bundle && vsce package --no-dependencies",
