@@ -10,26 +10,10 @@ const config = JSON.parse(await readFile(".releaserc.json", "utf8"));
 const packageJson = JSON.parse(await readFile("package.json", "utf8"));
 const packageLock = JSON.parse(await readFile("package-lock.json", "utf8"));
 const nvmrc = (await readFile(".nvmrc", "utf8")).trim();
-const [
-  ciWorkflow,
-  releaseWorkflow,
-  prTitleWorkflow,
-  dependabot,
-  codeowners,
-  prTemplate,
-  bugReport,
-  featureRequest,
-  issueConfig,
-] = await Promise.all([
+const [ciWorkflow, releaseWorkflow, prTitleWorkflow] = await Promise.all([
   readFile(".github/workflows/ci.yml", "utf8").then(load),
   readFile(".github/workflows/release.yml", "utf8").then(load),
   readFile(".github/workflows/pr-title.yml", "utf8").then(load),
-  readFile(".github/dependabot.yml", "utf8").then(load),
-  readFile(".github/CODEOWNERS", "utf8"),
-  readFile(".github/pull_request_template.md", "utf8"),
-  readFile(".github/ISSUE_TEMPLATE/bug_report.yml", "utf8").then(load),
-  readFile(".github/ISSUE_TEMPLATE/feature_request.yml", "utf8").then(load),
-  readFile(".github/ISSUE_TEMPLATE/config.yml", "utf8").then(load),
 ]);
 
 assert.equal(packageJson.engines.node, ">=24 <25");
@@ -57,6 +41,7 @@ const expectAction = (workflowName, jobName, action) => {
   assert.equal(actionStep.uses, actionRefs[action], `${workflowName} ${jobName} must pin ${action}`);
   if (action === "actions/setup-node") {
     assert.equal(actionStep.with?.["node-version"], 24, `${workflowName} ${jobName} must use Node 24`);
+    assert.equal(actionStep.with?.cache, "npm", `${workflowName} ${jobName} must cache npm dependencies`);
   }
 };
 expectAction("ci", "dependency-review", "actions/dependency-review-action");
@@ -79,17 +64,77 @@ for (const workflow of Object.values(workflows)) {
       }
       if (workflowStep.uses === actionRefs["actions/setup-node"]) {
         assert.equal(workflowStep.with?.["node-version"], 24, "Node setup must use Node 24");
+        assert.equal(workflowStep.with?.cache, "npm", "Node setup must cache npm dependencies");
       }
+      assert.equal(workflowStep["continue-on-error"], undefined, "Workflow steps must fail closed");
     }
   }
 }
 
+assert.deepEqual(ciWorkflow.on.pull_request.branches, ["main", "dev"]);
+assert.deepEqual(ciWorkflow.on.push.branches, ["main", "dev"]);
+assert.deepEqual(ciWorkflow.permissions, { contents: "read" });
+assert.deepEqual(ciWorkflow.jobs.release.permissions, { contents: "write" });
+assert.deepEqual(prTitleWorkflow.permissions, { contents: "read", "pull-requests": "read" });
+assert.deepEqual(releaseWorkflow.permissions, { contents: "write" });
+
+const workflowText = JSON.stringify(workflows);
+assert.doesNotMatch(workflowText, /\bdocker\b/i, "Workflows must not depend on Docker");
+assert.doesNotMatch(workflowText, /\bnpm audit\b/i, "Workflows must not run registry-dependent npm audit");
+
+const dependencyReviewSteps = ciWorkflow.jobs["dependency-review"].steps;
+assert.deepEqual(
+  dependencyReviewSteps.map((entry) => entry.uses),
+  [actionRefs["actions/checkout"], actionRefs["actions/dependency-review-action"]],
+);
+
+const runsFor = (workflow, jobName) =>
+  workflow.jobs[jobName].steps.filter((entry) => entry.run).map((entry) => entry.run);
+assert.deepEqual(runsFor(ciWorkflow, "lint"), [
+  "npm ci",
+  "npm run format:check",
+  "npm run lint",
+  "npm run check-types",
+]);
+assert.deepEqual(runsFor(ciWorkflow, "test"), [
+  "npm ci",
+  "npm run test:unit",
+  "npm run test:integration",
+  "xvfb-run -a npm run test:extension",
+]);
+assert.deepEqual(runsFor(ciWorkflow, "test-release"), ["npm ci", "npm run test:release"]);
+assert.deepEqual(runsFor(ciWorkflow, "build"), ["npm ci", "npm run package:vsix", "npm run test:package"]);
+
 assert.equal(ciWorkflow.jobs.release.needs, "quality");
 assert.deepEqual(ciWorkflow.jobs.quality.needs, ["commitlint", "lint", "test", "test-release", "build"]);
+assert.equal(
+  ciWorkflow.jobs.quality.if.replace(/\s+/g, " ").trim(),
+  "always() && needs.commitlint.result == 'success' && needs.lint.result == 'success' && needs.test.result == 'success' && needs.test-release.result == 'success' && needs.build.result == 'success'",
+);
+
+const branchPolicy = runsFor(ciWorkflow, "commitlint").find((command) =>
+  command.includes("Only pull requests coming from"),
+);
+assert.ok(branchPolicy, "The dev/development-to-main branch policy must remain enforced");
+assert.match(branchPolicy, /github\.head_ref.*!= "dev"/);
+assert.match(branchPolicy, /github\.head_ref.*!= "development"/);
+
+assert.match(prTitleWorkflow.concurrency.group, /github\.event\.pull_request\.number/);
+assert.equal(prTitleWorkflow.concurrency["cancel-in-progress"], true);
+const prTitleValidation = prTitleWorkflow.jobs.commitlint.steps.find((entry) => entry.name === "Validate PR title");
+assert.deepEqual(prTitleValidation.env, { PR_TITLE: "${{ github.event.pull_request.title }}" });
+assert.equal(prTitleValidation.run, `printf '%s\\n' "$PR_TITLE" | npx --no -- commitlint`);
 
 const semanticRelease = releaseWorkflow.jobs.release.steps.find((entry) => entry.id === "semantic-release");
 assert.ok(semanticRelease, "Semantic Release step missing");
 assert.equal(semanticRelease["continue-on-error"], undefined, "Semantic Release failures must block delivery");
+
+const marketplaceAvailability = releaseWorkflow.jobs.release.steps.find((entry) => entry.id === "marketplace");
+assert.ok(marketplaceAvailability, "Marketplace availability step missing");
+assert.deepEqual(marketplaceAvailability.env, { VSCE_PAT: "${{ secrets.VSCE_PAT }}" });
+assert.match(marketplaceAvailability.run, /available=true/);
+assert.match(marketplaceAvailability.run, /available=false/);
+assert.match(marketplaceAvailability.run, /\$GITHUB_OUTPUT/);
 
 const marketplacePublish = releaseWorkflow.jobs.release.steps.find(
   (entry) => entry.name === "Publish to VS Code Marketplace",
@@ -100,6 +145,22 @@ assert.equal(
   "steps.release.outputs.published == 'true' && steps.marketplace.outputs.available == 'true'",
   "Marketplace publication must require both a published release and an available credential",
 );
+
+const marketplaceSkip = releaseWorkflow.jobs.release.steps.find(
+  (entry) => entry.name === "Skip VS Code Marketplace publish",
+);
+assert.ok(marketplaceSkip, "Marketplace publication must log when it is skipped");
+assert.match(marketplaceSkip.run, /skip/i);
+assert.match(marketplaceSkip.run, /VSCE_PAT|release/i);
+
+const [dependabot, codeowners, prTemplate, bugReport, featureRequest, issueConfig] = await Promise.all([
+  readFile(".github/dependabot.yml", "utf8").then(load),
+  readFile(".github/CODEOWNERS", "utf8"),
+  readFile(".github/pull_request_template.md", "utf8"),
+  readFile(".github/ISSUE_TEMPLATE/bug_report.yml", "utf8").then(load),
+  readFile(".github/ISSUE_TEMPLATE/feature_request.yml", "utf8").then(load),
+  readFile(".github/ISSUE_TEMPLATE/config.yml", "utf8").then(load),
+]);
 
 assert.equal(codeowners, "* @diaszano\n.github/ @diaszano\n");
 assert.deepEqual(dependabot.version, 2);
@@ -203,7 +264,6 @@ const npmPlugin = plugin("@semantic-release/npm");
 assert.equal(npmPlugin[1].npmPublish, false);
 
 assert.deepEqual(Object.keys(releaseWorkflow.on), ["workflow_call"]);
-assert.deepEqual(releaseWorkflow.permissions, { contents: "write", packages: "write" });
 
 const releaseSteps = releaseWorkflow.jobs.release.steps;
 const step = (name) => releaseSteps.find((entry) => entry.name === name);

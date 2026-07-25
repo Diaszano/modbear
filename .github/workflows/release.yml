@@ -2,10 +2,12 @@ name: Release and Package
 
 on:
   workflow_call:
+    secrets:
+      VSCE_PAT:
+        required: false
 
 permissions:
   contents: write
-  packages: write
 
 concurrency:
   group: release-${{ github.repository }}-main
@@ -18,14 +20,14 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4.2.2
         with:
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v4.4.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -37,23 +39,33 @@ jobs:
 
       - name: Create semantic release
         id: semantic-release
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm exec semantic-release
-
-      - name: Report semantic-release status
-        if: steps.semantic-release.outcome == 'failure'
-        run: |
-          echo "::warning::semantic-release exited non-zero. Downstream steps recover via the tag-snapshot diff in resolve-release-tag.sh."
 
       - name: Resolve published version
         id: release
         shell: bash
         run: .github/scripts/resolve-release-tag.sh resolve "$RUNNER_TEMP/release-tags-before.txt" "$GITHUB_OUTPUT"
 
+      - name: Check VS Code Marketplace credentials
+        id: marketplace
+        shell: bash
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [[ -n "$VSCE_PAT" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to VS Code Marketplace
-        if: steps.release.outputs.published == 'true'
+        if: steps.release.outputs.published == 'true' && steps.marketplace.outputs.available == 'true'
         run: npx vsce publish --packagePath modbear-${{ steps.release.outputs.version }}.vsix
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Skip VS Code Marketplace publish
+        if: steps.release.outputs.published != 'true' || steps.marketplace.outputs.available != 'true'
+        run: echo "::notice::Skipping VS Code Marketplace publish because no stable release was published or VSCE_PAT is unavailable."
