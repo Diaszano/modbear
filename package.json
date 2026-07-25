@@ -184,9 +184,9 @@
     "test:package": "node scripts/test-package-config.mjs",
     "test": "npm run compile && npm run test:unit:run && npm run test:integration:run",
     "verify": "npm run compile && npm run test:unit:run && npm run test:integration:run",
-    "package": "npm run check && npm run bundle && vsce package --no-dependencies",
+    "package": "npm run check && npm run bundle:prod && vsce package --no-dependencies",
     "package:vsix": "npm run clean && npm run verify && npm run package",
-    "vscode:prepublish": "npm run clean && npm run bundle"
+    "vscode:prepublish": "npm run clean && npm run bundle:prod"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.1",
