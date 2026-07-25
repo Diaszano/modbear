@@ -1,6 +1,6 @@
 module.exports = {
   extends: ["@commitlint/config-conventional"],
-  ignores: [(message) => message.startsWith("merge: ")],
+  ignores: [(message) => message.trim() === "merge: add OpenCode agents"],
   rules: {
     // Allow sentence-case subjects so Dependabot commits
     // ("bump X from Y to Z") pass validation.
