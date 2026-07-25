@@ -22,14 +22,33 @@ async function loadReadConfig(get: (key: string, fallback: unknown) => unknown):
 }
 
 test("readConfig reads the current log level and falls back from invalid runtime values", async () => {
-  let configuredLevel: unknown = "invalid";
-  const readConfig = await loadReadConfig((key, fallback) => key === "output.logLevel" ? configuredLevel : fallback);
+  const configured = new Map<string, unknown>([["output.logLevel", "invalid"]]);
+  const readConfig = await loadReadConfig((key, fallback) => configured.get(key) ?? fallback);
 
   for (const invalidLevel of ["invalid", 1, false, null]) {
-    configuredLevel = invalidLevel;
+    configured.set("output.logLevel", invalidLevel);
     assert.equal(readConfig().logLevel, "info");
   }
 
-  configuredLevel = "debug";
+  configured.set("output.logLevel", "debug");
   assert.equal(readConfig().logLevel, "debug");
+
+  configured.set("vulnerability.buildTags", ["integration", "linux"]);
+  configured.set("vulnerability.database", "https://vuln.example.test");
+  configured.set("diagnostics.importedVulnerabilitySeverity", "information");
+  assert.deepEqual(readConfig().vulnerabilityBuildTags, ["integration", "linux"]);
+  assert.equal(readConfig().vulnerabilityDatabase, "https://vuln.example.test");
+  assert.equal(readConfig().importedVulnerabilitySeverity, "information");
+
+  configured.set("vulnerability.buildTags", ["invalid tag"]);
+  configured.set("vulnerability.database", "https://user:secret@vuln.example.test");
+  configured.set("diagnostics.importedVulnerabilitySeverity", "invalid");
+  assert.deepEqual(readConfig().vulnerabilityBuildTags, []);
+  assert.equal(readConfig().vulnerabilityDatabase, "");
+  assert.equal(readConfig().importedVulnerabilitySeverity, "warning");
+
+  configured.set("vulnerability.buildTags", ["integration", "integration"]);
+  configured.set("vulnerability.database", "http://vuln.example.test");
+  assert.deepEqual(readConfig().vulnerabilityBuildTags, []);
+  assert.equal(readConfig().vulnerabilityDatabase, "");
 });

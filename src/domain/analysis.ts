@@ -70,8 +70,7 @@ export interface ModuleAnalysisSnapshot {
   readonly replacements: readonly ReplacementStatus[];
   readonly vulnerabilities: VulnerabilityAnalysis;
   readonly tidy: TidyAnalysis;
-  /** Added before scan composition so cached and transitional snapshots remain readable. */
-  readonly toolchain?: ToolchainAnalysis;
+  readonly toolchain: ToolchainAnalysis;
   readonly errors: readonly AnalysisError[];
 }
 

@@ -8,6 +8,7 @@ import type { ModuleAnalysisSnapshot } from "../../domain/analysis";
 
 const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
 const notRunTidy = { state: "idle" as const, consistent: false, errors: [] };
+const notRunToolchain = { state: "unavailable" as const, errors: [] };
 
 const mockSnapshot: ModuleAnalysisSnapshot = {
   moduleId: "mod-1",
@@ -19,6 +20,7 @@ const mockSnapshot: ModuleAnalysisSnapshot = {
   replacements: [],
   vulnerabilities: notRunVulnerabilities,
   tidy: notRunTidy,
+  toolchain: notRunToolchain,
   errors: []
 };
 
@@ -49,6 +51,22 @@ test("AnalysisCache rejects schema 2 snapshots from before tidy analysis", async
     const key = makeKey(998);
     const filePath = path.join(tmpDir, `${key}.json`);
     await writeFile(filePath, JSON.stringify({ schema: 2, snapshot: mockSnapshot, lastAccessedAt: Date.now() }), "utf8");
+
+    assert.equal(await cache.get(key), undefined);
+    await assert.rejects(access(filePath));
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("AnalysisCache rejects schema 3 snapshots missing the required toolchain analysis", async () => {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "modbear-test-cache-toolchain-legacy-"));
+  try {
+    const cache = new AnalysisCache(tmpDir);
+    const key = makeKey(997);
+    const filePath = path.join(tmpDir, `${key}.json`);
+    const { toolchain: _toolchain, ...legacySnapshot } = mockSnapshot;
+    await writeFile(filePath, JSON.stringify({ schema: 3, snapshot: legacySnapshot, lastAccessedAt: Date.now() }), "utf8");
 
     assert.equal(await cache.get(key), undefined);
     await assert.rejects(access(filePath));

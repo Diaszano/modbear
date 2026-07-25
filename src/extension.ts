@@ -3,7 +3,7 @@ import { EXTENSION_ID } from "./metadata";
 import { DiagnosticManager } from "./diagnostics/diagnosticManager";
 import { AnalysisCache } from "./cache/analysisCache";
 import { ScanCoordinator } from "./orchestration/scanCoordinator";
-import { ModuleScanner } from "./orchestration/moduleScanner";
+import { ModuleScanner, type ScanTrigger } from "./orchestration/moduleScanner";
 import { DependencyHoverProvider } from "./providers/dependencyHoverProvider";
 import { DependencyInlayHintsProvider } from "./providers/dependencyInlayHintsProvider";
 import { StatusBarManager } from "./providers/statusBarManager";
@@ -72,7 +72,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     });
   };
   
-  const requestScan = async (module: ModuleContext) => {
+  const requestScan = async (module: ModuleContext, trigger: ScanTrigger = "background") => {
     if (!vscode.workspace.isTrusted) return;
     const config = getConfig();
     if (!config.enabled) return;
@@ -91,7 +91,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           enabled: true,
           govulncheckPath: config.govulncheckPath,
           timeoutMs: config.vulnerabilityTimeoutSeconds * 1000,
-          coordinator: vulnerabilityCoordinator ??= new VulnerabilityCoordinator()
+          coordinator: vulnerabilityCoordinator ??= new VulnerabilityCoordinator(),
+          includeTests: config.vulnerabilityIncludeTests,
+          buildTags: config.vulnerabilityBuildTags,
+          database: config.vulnerabilityDatabase
         }
       : undefined;
     const scanner = new ModuleScanner(
@@ -100,12 +103,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       config.timeoutSeconds * 1000,
       config.updateTtlMinutes * 60000,
       output,
-      vulnerability
+      vulnerability,
+      {
+        tidyEnabled: config.tidyEnabled,
+        tidyTtlMs: config.tidyTtlMinutes * 60_000,
+        vulnerabilityTtlMs: config.vulnerabilityTtlMinutes * 60_000
+      }
     );
     coordinator.scanModule({
       module,
       contentHash: "",
-      run: (signal) => scanner.scan(module, signal)
+      run: (signal) => scanner.scan(module, signal, trigger)
     }).catch(err => {
       if (err instanceof Error && err.message === "Scan cancelled") {
         statusBarManager.markScanFinished(module.id);
@@ -195,7 +203,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   activeScheduler = scheduler;
   context.subscriptions.push(scheduler);
 
-  const triggerScan = (doc: vscode.TextDocument, isSave: boolean) => {
+  const triggerScan = (doc: vscode.TextDocument, trigger: ScanTrigger) => {
     if (!doc.fileName.endsWith("go.mod")) return;
     if (!vscode.workspace.isTrusted) return;
     
@@ -203,12 +211,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (!module) return;
     
     const config = readConfig(doc.uri);
-    scheduler.triggerScan(module, isSave, config);
+    scheduler.triggerScan(module, trigger, config);
   };
 
   context.subscriptions.push(
-    vscode.workspace.onDidOpenTextDocument(doc => triggerScan(doc, false)),
-    vscode.workspace.onDidSaveTextDocument(doc => triggerScan(doc, true))
+    vscode.workspace.onDidOpenTextDocument(doc => triggerScan(doc, "background")),
+    vscode.workspace.onDidSaveTextDocument(doc => triggerScan(doc, "save"))
   );
 
   context.subscriptions.push(
@@ -235,7 +243,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return;
       }
       handleDiscoveryResult(result);
-      for (const module of modules) requestScan(module);
+      for (const module of modules) requestScan(module, "manual");
     }),
     vscode.commands.registerCommand("modBear.copySuggestion", async (suggestion: string) => {
       await vscode.env.clipboard.writeText(suggestion);
@@ -316,17 +324,18 @@ export class ScanScheduler implements vscode.Disposable {
   private readonly scanTimeouts = new Map<string, NodeJS.Timeout>();
 
   public constructor(
-    private readonly requestScan: (module: ModuleContext) => void
+    private readonly requestScan: (module: ModuleContext, trigger?: ScanTrigger) => void
   ) {}
 
   public triggerScan(
     module: ModuleContext,
-    isSave: boolean,
+    trigger: ScanTrigger | boolean,
     config: ScanSchedulerConfig
   ): void {
     if (!config.enabled) return;
-    if (isSave && !config.onSave) return;
-    if (!isSave && !config.onOpen) return;
+    const scanTrigger: ScanTrigger = trigger === "save" || trigger === true ? "save" : "background";
+    if (scanTrigger === "save" && !config.onSave) return;
+    if (scanTrigger === "background" && !config.onOpen) return;
 
     const existing = this.scanTimeouts.get(module.id);
     if (existing) {
@@ -335,7 +344,7 @@ export class ScanScheduler implements vscode.Disposable {
 
     const timer = setTimeout(() => {
       this.scanTimeouts.delete(module.id);
-      this.requestScan(module);
+      this.requestScan(module, scanTrigger);
     }, 500);
 
     this.scanTimeouts.set(module.id, timer);

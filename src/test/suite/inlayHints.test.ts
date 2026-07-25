@@ -9,6 +9,7 @@ import { GoModDocumentCache } from "../../parsers/goModDocumentCache";
 
 const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
 const notRunTidy = { state: "idle" as const, consistent: false, errors: [] };
+const notRunToolchain = { state: "unavailable" as const, errors: [] };
 
 suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
   test("places the available version immediately after the installed version", async () => {
@@ -39,6 +40,7 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       ],
       replacements: [],
       tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };
@@ -89,6 +91,7 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       }],
       replacements: [],
       tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };
@@ -130,6 +133,7 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       }],
       replacements: [],
       tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };
@@ -182,6 +186,7 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       ],
       replacements: [],
       tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };
@@ -225,6 +230,7 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       ],
       replacements: [],
       tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: {
         state: "unavailable",
         findings: [],
@@ -273,6 +279,7 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       ],
       replacements: [],
       tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: {
         state: "complete",
         findings: [
@@ -335,6 +342,7 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         ],
         replacements: [],
         tidy: notRunTidy,
+        toolchain: notRunToolchain,
         vulnerabilities: notRunVulnerabilities,
         errors: []
       };
@@ -399,6 +407,7 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       dependencies: dependenciesProxy,
       replacements: [],
       tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };

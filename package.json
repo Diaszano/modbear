@@ -103,6 +103,18 @@
           "minimum": 1,
           "maximum": 1440
         },
+        "modBear.scan.vulnerabilityTtlMinutes": {
+          "type": "number",
+          "default": 360,
+          "minimum": 1,
+          "maximum": 10080
+        },
+        "modBear.scan.tidyTtlMinutes": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 1440
+        },
         "modBear.scan.maxConcurrentModules": {
           "type": "number",
           "default": 2,
@@ -124,6 +136,29 @@
           "default": 600,
           "minimum": 30,
           "maximum": 1800
+        },
+        "modBear.tidy.enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "modBear.vulnerability.includeTests": {
+          "type": "boolean",
+          "default": false
+        },
+        "modBear.vulnerability.buildTags": {
+          "type": "array",
+          "default": [],
+          "uniqueItems": true,
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.-]*$"
+          }
+        },
+        "modBear.vulnerability.database": {
+          "type": "string",
+          "default": "",
+          "scope": "window"
         },
         "modBear.inlayHints.enabled": {
           "type": "boolean",
@@ -149,6 +184,15 @@
             "warning"
           ],
           "default": "none"
+        },
+        "modBear.diagnostics.importedVulnerabilitySeverity": {
+          "type": "string",
+          "enum": [
+            "none",
+            "information",
+            "warning"
+          ],
+          "default": "warning"
         },
         "modBear.output.logLevel": {
           "type": "string",

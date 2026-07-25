@@ -23,6 +23,14 @@ function isValidSnapshot(value: unknown): value is ModuleAnalysisSnapshot {
     s.vulnerabilities !== null &&
     typeof (s.vulnerabilities as any).state === "string" &&
     Array.isArray((s.vulnerabilities as any).findings) &&
+    typeof s.tidy === "object" &&
+    s.tidy !== null &&
+    typeof (s.tidy as any).state === "string" &&
+    Array.isArray((s.tidy as any).errors) &&
+    typeof s.toolchain === "object" &&
+    s.toolchain !== null &&
+    typeof (s.toolchain as any).state === "string" &&
+    Array.isArray((s.toolchain as any).errors) &&
     Array.isArray(s.errors)
   );
 }

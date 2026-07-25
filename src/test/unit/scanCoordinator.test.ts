@@ -12,6 +12,7 @@ import type { ModuleContext } from "../../domain/module";
 
 const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
 const notRunTidy = { state: "idle" as const, consistent: false, errors: [] };
+const notRunToolchain = { state: "unavailable" as const, errors: [] };
 
 const dummyModule: ModuleContext = {
   id: "mod-1",
@@ -29,6 +30,7 @@ const mockSnapshot: ModuleAnalysisSnapshot = {
   replacements: [],
   vulnerabilities: notRunVulnerabilities,
   tidy: notRunTidy,
+  toolchain: notRunToolchain,
   errors: []
 };
 
@@ -245,17 +247,18 @@ test("ScanCoordinator and ModuleScanner emit structured scan lifecycle events", 
       goModPath
     };
 
-    // First scan: cache miss, fails because of invalid-go
+    // First scan: cache miss, retains the available phase results as partial.
     const request = {
       module: moduleContext,
       contentHash: "hash-event-miss",
       run: (signal: AbortSignal) => scanner.scan(moduleContext, signal)
     };
 
-    await assert.rejects(coordinator.scanModule(request));
+    const partial = await coordinator.scanModule(request);
 
     assert.ok(loggedEvents.some(e => e.name === "scan.started" && e.fields.includes("cache=miss") && e.level === "info"));
-    assert.ok(loggedEvents.some(e => e.name === "scan.failed" && e.fields.includes("kind=spawn") && e.level === "error"));
+    assert.equal(partial.updateState, "partial");
+    assert.equal(partial.toolchain.state, "failed");
 
     // Now populate cache using the contentHash to get a cache hit
     const contentHash = createCacheKey({
@@ -264,8 +267,15 @@ test("ScanCoordinator and ModuleScanner emit structured scan lifecycle events", 
       goSum: "",
       goWork: "",
       goExecutable: "invalid-go",
+      goIdentity: { executable: "invalid-go", version: "" },
       timeoutMs: 5000,
-      vulnerability: undefined
+      vulnerability: undefined,
+      health: {
+        tidyEnabled: true,
+        tidyEligible: false,
+        tidyTtlMs: 600000,
+        vulnerabilityTtlMs: 21600000
+      }
     });
 
     const mockSnapshot: ModuleAnalysisSnapshot = {
@@ -278,6 +288,7 @@ test("ScanCoordinator and ModuleScanner emit structured scan lifecycle events", 
       replacements: [],
       vulnerabilities: { state: "not-run", findings: [], advisories: {}, errors: [] },
       tidy: notRunTidy,
+      toolchain: notRunToolchain,
       errors: []
     };
 

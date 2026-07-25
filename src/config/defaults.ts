@@ -4,11 +4,18 @@ export const DEFAULTS = {
   onOpen: true,
   onSave: true,
   updateTtlMinutes: 30,
+  vulnerabilityTtlMinutes: 360,
+  tidyTtlMinutes: 10,
   timeoutSeconds: 120,
   govulncheckPath: "govulncheck",
   vulnerabilityEnabled: true,
   vulnerabilityTimeoutSeconds: 600,
+  tidyEnabled: true,
+  vulnerabilityIncludeTests: false,
+  vulnerabilityBuildTags: [] as readonly string[],
+  vulnerabilityDatabase: "",
   updateSeverity: "none" as const,
+  importedVulnerabilitySeverity: "warning" as const,
   maxConcurrentModules: 2,
   logLevel: "info" as const
 };

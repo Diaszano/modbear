@@ -87,6 +87,7 @@ export class ScanCoordinator {
               replacements: [],
               vulnerabilities: { state: "not-run" as const, findings: [], advisories: {}, errors: [] },
               tidy: { state: "idle" as const, consistent: false, errors: [] },
+              toolchain: { state: "unavailable" as const, errors: [] },
               errors: [{ code: classifyAnalysisError(err), message: "Dependency analysis failed." }]
             });
         this.snapshots.set(request.module.id, snapshot);
