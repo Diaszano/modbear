@@ -3,7 +3,7 @@ import path from "node:path";
 import type { ModuleAnalysisSnapshot } from "../domain/analysis";
 
 interface CacheEnvelope {
-  readonly schema: 2;
+  readonly schema: 3;
   readonly snapshot: ModuleAnalysisSnapshot;
   readonly lastAccessedAt: number;
 }
@@ -35,10 +35,10 @@ export class AnalysisCache {
     try {
       const content = await readFile(filePath, "utf8");
       const parsed = JSON.parse(content);
-      if (parsed && parsed.schema === 2 && isValidSnapshot(parsed.snapshot)) {
+      if (parsed && parsed.schema === 3 && isValidSnapshot(parsed.snapshot)) {
         // Update lastAccessedAt on access
         const updatedEnvelope: CacheEnvelope = {
-          schema: 2,
+          schema: 3,
           snapshot: parsed.snapshot,
           lastAccessedAt: Date.now()
         };
@@ -58,7 +58,7 @@ export class AnalysisCache {
 
   public async set(key: string, snapshot: ModuleAnalysisSnapshot): Promise<void> {
     const envelope: CacheEnvelope = {
-      schema: 2,
+      schema: 3,
       snapshot,
       lastAccessedAt: Date.now()
     };
@@ -95,7 +95,7 @@ export class AnalysisCache {
           const parsed = JSON.parse(content);
           if (
             parsed &&
-            parsed.schema === 2 &&
+            parsed.schema === 3 &&
             typeof parsed.lastAccessedAt === "number" &&
             isValidSnapshot(parsed.snapshot)
           ) {

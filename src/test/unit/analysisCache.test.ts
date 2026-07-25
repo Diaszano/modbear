@@ -24,7 +24,7 @@ const mockSnapshot: ModuleAnalysisSnapshot = {
 
 const makeKey = (i: number): string => String(i).padStart(64, "0");
 
-test("AnalysisCache stores, retrieves, and deletes schema 2 snapshots", async () => {
+test("AnalysisCache stores, retrieves, and deletes schema 3 snapshots", async () => {
   const tmpDir = await mkdtemp(path.join(os.tmpdir(), "modbear-test-cache-"));
   try {
     const cache = new AnalysisCache(tmpDir);
@@ -37,6 +37,21 @@ test("AnalysisCache stores, retrieves, and deletes schema 2 snapshots", async ()
 
     await cache.delete("key-1");
     assert.equal(await cache.get("key-1"), undefined);
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("AnalysisCache rejects schema 2 snapshots from before tidy analysis", async () => {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "modbear-test-cache-legacy-"));
+  try {
+    const cache = new AnalysisCache(tmpDir);
+    const key = makeKey(998);
+    const filePath = path.join(tmpDir, `${key}.json`);
+    await writeFile(filePath, JSON.stringify({ schema: 2, snapshot: mockSnapshot, lastAccessedAt: Date.now() }), "utf8");
+
+    assert.equal(await cache.get(key), undefined);
+    await assert.rejects(access(filePath));
   } finally {
     await rm(tmpDir, { recursive: true, force: true });
   }
