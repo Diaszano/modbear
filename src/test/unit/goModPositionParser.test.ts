@@ -13,7 +13,7 @@ test("parses directives and exact requirement ranges", () => {
   assert.equal(parsed.requirements[1]?.modulePath, "github.com/gin-gonic/gin");
   assert.deepEqual(parsed.requirements[1]?.versionRange, {
     start: { line: 7, character: 26 },
-    end: { line: 7, character: 32 }
+    end: { line: 7, character: 32 },
   });
   assert.equal(parsed.requirements[2]?.indirect, true);
 });
@@ -37,11 +37,11 @@ test("correctly calculates range offsets when version string is substring of mod
   assert.equal(parsed.requirements[0]?.version, "v1.0.0");
   assert.deepEqual(parsed.requirements[0]?.moduleRange, {
     start: { line: 0, character: 8 },
-    end: { line: 0, character: 26 }
+    end: { line: 0, character: 26 },
   });
   assert.deepEqual(parsed.requirements[0]?.versionRange, {
     start: { line: 0, character: 27 },
-    end: { line: 0, character: 33 }
+    end: { line: 0, character: 33 },
   });
 });
 
@@ -51,7 +51,7 @@ test("correctly calculates target path range when oldPath and newPath share subs
   assert.equal(parsed.replacements.length, 1);
   assert.deepEqual(parsed.replacements[0]?.range, {
     start: { line: 0, character: 27 },
-    end: { line: 0, character: 42 }
+    end: { line: 0, character: 42 },
   });
 });
 

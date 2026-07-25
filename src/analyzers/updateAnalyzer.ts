@@ -4,7 +4,7 @@ import type { ModuleContext } from "../domain/module";
 import { buildGoEnvironment } from "../execution/environment";
 import { requireSuccessfulExit } from "../execution/processOutcome";
 import { runProcess } from "../execution/processRunner";
-import { parseGoListJson, type GoListModule } from "../parsers/goListJsonParser";
+import type { GoListModule } from "../parsers/goListJsonParser";
 import { GoListJsonStreamParser } from "../parsers/goListJsonStreamParser";
 import { classifyUpdate } from "../parsers/goVersionParser";
 
@@ -17,7 +17,7 @@ export function buildGoListArgs(requirements: readonly GoModRequirement[] = []):
 
 export function analyzeUpdateOutput(
   requirements: readonly GoModRequirement[],
-  modules: readonly GoListModule[]
+  modules: readonly GoListModule[],
 ): readonly DependencyStatus[] {
   const byPath = new Map(modules.map((module) => [module.Path, module]));
   return requirements.map((requirement) => {
@@ -26,13 +26,15 @@ export function analyzeUpdateOutput(
     return {
       modulePath: requirement.modulePath,
       installedVersion: requirement.version,
-      ...(availableVersion ? {
-        availableVersion,
-        updateKind: classifyUpdate(requirement.version, availableVersion)
-      } : {}),
+      ...(availableVersion
+        ? {
+            availableVersion,
+            updateKind: classifyUpdate(requirement.version, availableVersion),
+          }
+        : {}),
       ...(module?.Deprecated ? { deprecatedMessage: module.Deprecated } : {}),
       retractionRationales: module?.Retracted ?? [],
-      errors: module?.Error ? [{ code: "module-resolution" as const, message: module.Error.Err }] : []
+      errors: module?.Error ? [{ code: "module-resolution" as const, message: module.Error.Err }] : [],
     };
   });
 }
@@ -58,7 +60,9 @@ export async function analyzeUpdates(input: {
     stderrLimitBytes: 5 * 1024 * 1024,
     signal: input.signal,
     collectStdout: false,
-    onStdoutChunk: (chunk) => parser.push(chunk)
+    onStdoutChunk: (chunk) => {
+      parser.push(chunk);
+    },
   });
   requireSuccessfulExit(result, "go list");
   const modules = parser.finish();

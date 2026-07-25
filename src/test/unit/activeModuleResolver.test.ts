@@ -17,20 +17,8 @@ test("resolves active module for document in module", () => {
     },
   ];
 
-  assert.equal(
-    resolveActiveModule("/repo/app/sub/pkg/foo.go", modules)?.id,
-    "/repo/app/sub"
-  );
-  assert.equal(
-    resolveActiveModule("/repo/app/go.mod", modules)?.id,
-    "/repo/app"
-  );
-  assert.equal(
-    resolveActiveModule("/repo/app/main.go", modules)?.id,
-    "/repo/app"
-  );
-  assert.equal(
-    resolveActiveModule("/other/file.go", modules),
-    undefined
-  );
+  assert.equal(resolveActiveModule("/repo/app/sub/pkg/foo.go", modules)?.id, "/repo/app/sub");
+  assert.equal(resolveActiveModule("/repo/app/go.mod", modules)?.id, "/repo/app");
+  assert.equal(resolveActiveModule("/repo/app/main.go", modules)?.id, "/repo/app");
+  assert.equal(resolveActiveModule("/other/file.go", modules), undefined);
 });

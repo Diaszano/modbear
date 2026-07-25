@@ -1,8 +1,5 @@
 {
-  "branches": [
-    "main",
-    { "name": "dev", "prerelease": "dev" }
-  ],
+  "branches": ["main", { "name": "dev", "prerelease": "dev" }],
   "tagFormat": "v${version}",
   "plugins": [
     [
@@ -44,9 +41,7 @@
     [
       "@semantic-release/github",
       {
-        "assets": [
-          { "path": "modbear-*.vsix", "label": "ModBear VS Code Extension (VSIX)" }
-        ]
+        "assets": [{ "path": "modbear-*.vsix", "label": "ModBear VS Code Extension (VSIX)" }]
       }
     ]
   ]

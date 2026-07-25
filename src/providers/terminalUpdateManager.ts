@@ -28,11 +28,7 @@ const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 export function parsePrepareUpdateArgs(input: unknown): PrepareUpdateArgs {
   if (!isRecord(input)) throw new Error("Invalid terminal update arguments.");
   const { moduleRoot, modulePath, version } = input;
-  if (
-    typeof moduleRoot !== "string" ||
-    !path.isAbsolute(moduleRoot) ||
-    CONTROL_CHARACTERS.test(moduleRoot)
-  ) {
+  if (typeof moduleRoot !== "string" || !path.isAbsolute(moduleRoot) || CONTROL_CHARACTERS.test(moduleRoot)) {
     throw new Error("Invalid module root.");
   }
   if (typeof modulePath !== "string" || !SAFE_MODULE_PATH.test(modulePath)) {

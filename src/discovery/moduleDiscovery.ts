@@ -11,29 +11,25 @@ export interface ModuleDiscoveryResult {
   readonly errors: readonly Error[];
 }
 
-export async function discoverModules(
-  roots: readonly string[],
-  signal: AbortSignal
-): Promise<ModuleDiscoveryResult> {
+export async function discoverModules(roots: readonly string[], signal: AbortSignal): Promise<ModuleDiscoveryResult> {
   const modules = new Map<string, ModuleContext>();
-  const workspaces: Array<{ workspaceFolder: string; goWorkPath: string }> = [];
+  const workspaces: { workspaceFolder: string; goWorkPath: string }[] = [];
   const seenDirectories = new Set<string>();
   const errors: Error[] = [];
   let visited = 0;
 
-  const addModule = async (
-    candidateRoot: string,
-    workspaceFolder: string,
-    goWorkPath?: string
-  ): Promise<void> => {
+  const addModule = async (candidateRoot: string, workspaceFolder: string, goWorkPath?: string): Promise<void> => {
     const moduleRoot = await realpath(candidateRoot);
     const goModPath = path.join(moduleRoot, "go.mod");
-    const isModule = await stat(goModPath).then((value) => value.isFile(), () => false);
+    const isModule = await stat(goModPath).then(
+      (value) => value.isFile(),
+      () => false,
+    );
     if (!isModule) return;
     const goSumCandidate = path.join(moduleRoot, "go.sum");
     const goSumPath = await stat(goSumCandidate).then(
-      (value) => value.isFile() ? goSumCandidate : undefined,
-      () => undefined
+      (value) => (value.isFile() ? goSumCandidate : undefined),
+      () => undefined,
     );
     const existing = modules.get(moduleRoot);
     const resolvedGoWorkPath = goWorkPath ?? existing?.goWorkPath;
@@ -43,7 +39,7 @@ export async function discoverModules(
       goModPath,
       workspaceFolder: existing?.workspaceFolder ?? workspaceFolder,
       ...(goSumPath ? { goSumPath } : {}),
-      ...(resolvedGoWorkPath ? { goWorkPath: resolvedGoWorkPath } : {})
+      ...(resolvedGoWorkPath ? { goWorkPath: resolvedGoWorkPath } : {}),
     };
     modules.set(moduleRoot, ctx);
   };
@@ -128,6 +124,6 @@ export async function discoverModules(
 
   return {
     modules: [...modules.values()].sort((a, b) => a.moduleRoot.localeCompare(b.moduleRoot)),
-    errors
+    errors,
   };
 }

@@ -24,24 +24,24 @@
 
 ## File Structure
 
-| Path | Responsibility |
-| --- | --- |
-| `src/execution/processRunner.ts` | Shell-free process execution, process-tree termination, output limits, optional incremental stdout consumption. |
-| `src/execution/processOutcome.ts` | Convert completed process results into typed success/non-zero failures. |
-| `src/logging/redaction.ts` | Redact URLs, paths, tokens, environment-like secrets, and nested error text. |
-| `src/logging/logger.ts` | Apply configured log level and emit structured, redacted local events. |
-| `src/orchestration/scanCoordinator.ts` | Preserve prior snapshots as stale on refresh failure and expose typed failure status. |
-| `src/cache/analysisCache.ts` | Versioned, validated, atomic, bounded persistent cache. |
-| `src/execution/goToolIdentity.ts` | Resolve and cache the Go executable version used in cache identity. |
-| `src/parsers/goListJsonStreamParser.ts` | Incrementally parse consecutive `go list -json` objects. |
-| `src/parsers/goModDocumentCache.ts` | Cache parsed `go.mod` positions by URI and document version for UI providers. |
-| `src/domain/vulnerability.ts` | Vulnerability state, classification, and immutable findings. |
-| `src/parsers/govulncheckJsonParser.ts` | Validate and parse `govulncheck` JSONL protocol v1. |
-| `src/analyzers/vulnerabilityAnalyzer.ts` | Run `govulncheck` in a trusted module and return an explicit unavailable state on tool failures. |
-| `src/orchestration/vulnerabilityCoordinator.ts` | Limit vulnerability scans to one active process. |
-| `src/diagnostics/vulnerabilityDiagnosticMapper.ts` | Map classified vulnerability findings to `go.mod` diagnostics. |
-| `src/discovery/moduleDiscovery.ts` | Abortable discovery that records non-fatal subtree failures. |
-| `src/extension.ts` | Per-module scheduling, workspace trust gates, configuration application, snapshot/UI projection. |
+| Path                                               | Responsibility                                                                                                  |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `src/execution/processRunner.ts`                   | Shell-free process execution, process-tree termination, output limits, optional incremental stdout consumption. |
+| `src/execution/processOutcome.ts`                  | Convert completed process results into typed success/non-zero failures.                                         |
+| `src/logging/redaction.ts`                         | Redact URLs, paths, tokens, environment-like secrets, and nested error text.                                    |
+| `src/logging/logger.ts`                            | Apply configured log level and emit structured, redacted local events.                                          |
+| `src/orchestration/scanCoordinator.ts`             | Preserve prior snapshots as stale on refresh failure and expose typed failure status.                           |
+| `src/cache/analysisCache.ts`                       | Versioned, validated, atomic, bounded persistent cache.                                                         |
+| `src/execution/goToolIdentity.ts`                  | Resolve and cache the Go executable version used in cache identity.                                             |
+| `src/parsers/goListJsonStreamParser.ts`            | Incrementally parse consecutive `go list -json` objects.                                                        |
+| `src/parsers/goModDocumentCache.ts`                | Cache parsed `go.mod` positions by URI and document version for UI providers.                                   |
+| `src/domain/vulnerability.ts`                      | Vulnerability state, classification, and immutable findings.                                                    |
+| `src/parsers/govulncheckJsonParser.ts`             | Validate and parse `govulncheck` JSONL protocol v1.                                                             |
+| `src/analyzers/vulnerabilityAnalyzer.ts`           | Run `govulncheck` in a trusted module and return an explicit unavailable state on tool failures.                |
+| `src/orchestration/vulnerabilityCoordinator.ts`    | Limit vulnerability scans to one active process.                                                                |
+| `src/diagnostics/vulnerabilityDiagnosticMapper.ts` | Map classified vulnerability findings to `go.mod` diagnostics.                                                  |
+| `src/discovery/moduleDiscovery.ts`                 | Abortable discovery that records non-fatal subtree failures.                                                    |
+| `src/extension.ts`                                 | Per-module scheduling, workspace trust gates, configuration application, snapshot/UI projection.                |
 
 ---
 
@@ -143,8 +143,11 @@ Then add to `processRunner.test.ts`:
 test("captures a non-zero exit for the caller to classify", async () => {
   const result = await runProcess({
     executable: process.execPath,
-    args: [tool, "fail"], cwd: process.cwd(), timeoutMs: 2_000,
-    stdoutLimitBytes: 1024, stderrLimitBytes: 1024
+    args: [tool, "fail"],
+    cwd: process.cwd(),
+    timeoutMs: 2_000,
+    stdoutLimitBytes: 1024,
+    stderrLimitBytes: 1024,
   });
   assert.equal(result.exitCode, 7);
   assert.match(result.stderr, /password/);
@@ -218,9 +221,15 @@ Add this test to `scanCoordinator.test.ts`:
 test("retains the last successful snapshot as stale when refresh fails", async () => {
   const coordinator = new ScanCoordinator();
   await coordinator.scanModule({ module: dummyModule, contentHash: "ok", run: async () => mockSnapshot });
-  await assert.rejects(coordinator.scanModule({
-    module: dummyModule, contentHash: "new", run: async () => { throw new Error("network unavailable"); }
-  }));
+  await assert.rejects(
+    coordinator.scanModule({
+      module: dummyModule,
+      contentHash: "new",
+      run: async () => {
+        throw new Error("network unavailable");
+      },
+    }),
+  );
   const snapshot = coordinator.getSnapshot(dummyModule.id)!;
   assert.equal(snapshot.stale, true);
   assert.equal(snapshot.updateState, "partial");
@@ -246,7 +255,7 @@ const staleSnapshot: ModuleAnalysisSnapshot = Object.freeze({
   createdAt: new Date().toISOString(),
   stale: true,
   updateState: "partial",
-  errors: [{ code: classifyAnalysisError(err), message: "Dependency refresh failed." }]
+  errors: [{ code: classifyAnalysisError(err), message: "Dependency refresh failed." }],
 });
 ```
 
@@ -362,7 +371,7 @@ Create a fixture containing config, progress, OSV, and finding messages. Assert 
 test("rejects unsupported protocol major versions", () => {
   assert.throws(
     () => parseGovulncheckStream('{"config":{"protocol_version":"v2.0.0"}}\\n'),
-    /Unsupported govulncheck protocol/
+    /Unsupported govulncheck protocol/,
   );
 });
 ```
@@ -423,7 +432,7 @@ Use the fake tool to emit the fixture stream. Add tests asserting a trace with a
 assert.deepEqual(result, {
   state: "unavailable",
   findings: [],
-  errors: [{ code: "tool-not-found", message: "Vulnerability analysis is unavailable." }]
+  errors: [{ code: "tool-not-found", message: "Vulnerability analysis is unavailable." }],
 });
 ```
 
@@ -633,8 +642,12 @@ export class GoModDocumentCache {
     this.entries.set(key, { version: document.version, parsed });
     return parsed;
   }
-  public delete(uri: vscode.Uri): void { this.entries.delete(uri.toString()); }
-  public clear(): void { this.entries.clear(); }
+  public delete(uri: vscode.Uri): void {
+    this.entries.delete(uri.toString());
+  }
+  public clear(): void {
+    this.entries.clear();
+  }
 }
 ```
 

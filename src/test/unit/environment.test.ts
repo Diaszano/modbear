@@ -18,19 +18,12 @@ test("buildGoEnvironment sets GOFLAGS", () => {
 });
 
 test("redactUrlCredentials redacts passwords in URLs", () => {
-  assert.equal(
-    redactUrlCredentials("https://user:password@github.com/repo.git"),
-    "https://***@github.com/repo.git"
-  );
+  assert.equal(redactUrlCredentials("https://user:password@github.com/repo.git"), "https://***@github.com/repo.git");
 });
 
 test("redactCommand redacts arguments", () => {
   const args = ["go", "get", "https://token:secret@example.com/pkg"];
-  assert.deepEqual(redactCommand(args), [
-    "go",
-    "get",
-    "https://***@example.com/pkg"
-  ]);
+  assert.deepEqual(redactCommand(args), ["go", "get", "https://***@example.com/pkg"]);
 });
 
 test("redactLogMessage redacts credentials from raw caught error messages", () => {
@@ -38,7 +31,7 @@ test("redactLogMessage redacts credentials from raw caught error messages", () =
 
   assert.equal(
     redactLogMessage(`Scan failed for module-a: ${error}`),
-    "Scan failed for module-a: Error: go list failed for https://***@example.com/private/module"
+    "Scan failed for module-a: Error: go list failed for https://***@example.com/private/module",
   );
 });
 
@@ -63,18 +56,12 @@ test("resolveTool uses fallback when configured is empty", async () => {
 });
 
 test("resolveTool checks path existence when custom path given", async () => {
-  await assert.rejects(
-    resolveTool("/non/existent/path/to/tool", "go"),
-    { code: "ENOENT" }
-  );
+  await assert.rejects(resolveTool("/non/existent/path/to/tool", "go"), { code: "ENOENT" });
 });
 
 test("resolveTool checks executable permission when non-executable path given", async () => {
-  await assert.rejects(
-    resolveTool("./package.json", "go"),
-    (err: unknown) => {
-      assert(err instanceof Error);
-      return "code" in err && (err.code === "EACCES" || err.code === "EPERM");
-    }
-  );
+  await assert.rejects(resolveTool("./package.json", "go"), (err: unknown) => {
+    assert(err instanceof Error);
+    return "code" in err && (err.code === "EACCES" || err.code === "EPERM");
+  });
 });

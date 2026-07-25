@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest an improvement to the ModBear VS Code extension.
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: Tell us how ModBear can better support your Go module workflow.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution
+      description: What would a useful ModBear experience look like?
+    validations:
+      required: true

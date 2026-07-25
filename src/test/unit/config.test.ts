@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import test from "node:test";
+import type { readConfig } from "../../config/config";
 
 type ModuleLoader = (request: string, parent: NodeModule | undefined, isMain: boolean) => unknown;
 
-async function loadReadConfig(get: (key: string, fallback: unknown) => unknown): Promise<typeof import("../../config/config").readConfig> {
+async function loadReadConfig(get: (key: string, fallback: unknown) => unknown): Promise<typeof readConfig> {
   const nodeRequire = createRequire(__filename);
   const moduleLoader = nodeRequire("node:module") as { _load: ModuleLoader };
   const originalLoad = moduleLoader._load;
@@ -23,7 +24,7 @@ async function loadReadConfig(get: (key: string, fallback: unknown) => unknown):
 
 test("readConfig reads the current log level and falls back from invalid runtime values", async () => {
   let configuredLevel: unknown = "invalid";
-  const readConfig = await loadReadConfig((key, fallback) => key === "output.logLevel" ? configuredLevel : fallback);
+  const readConfig = await loadReadConfig((key, fallback) => (key === "output.logLevel" ? configuredLevel : fallback));
 
   for (const invalidLevel of ["invalid", 1, false, null]) {
     configuredLevel = invalidLevel;

@@ -10,14 +10,14 @@ const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisor
 function getTooltipText(tooltip: string | vscode.MarkdownString | undefined): string {
   if (!tooltip) return "";
   if (typeof tooltip === "string") return tooltip;
-  return tooltip.value ?? String(tooltip);
+  return tooltip.value;
 }
 
 suite("StatusBarManager Test Suite", () => {
   const dummyModule: ModuleContext = {
     id: "mod-1",
     moduleRoot: "/path/to/mod",
-    goModPath: "/path/to/mod/go.mod"
+    goModPath: "/path/to/mod/go.mod",
   };
 
   test("initializes status bar item with OK state when no modules/snapshots exist", () => {
@@ -30,7 +30,7 @@ suite("StatusBarManager Test Suite", () => {
     assert.equal(item.priority, 100);
     assert.equal(item.text, "🐻 ModBear: OK");
     assert.ok(item.tooltip instanceof vscode.MarkdownString);
-    assert.equal((item.tooltip as vscode.MarkdownString).isTrusted, true);
+    assert.equal(item.tooltip.isTrusted, true);
     assert.ok(getTooltipText(item.tooltip).includes("All Go modules analyzed"));
 
     manager.dispose();
@@ -70,10 +70,12 @@ suite("StatusBarManager Test Suite", () => {
       dependencies: [],
       replacements: [],
       vulnerabilities: notRunVulnerabilities,
-      errors: []
+      errors: [],
     };
 
-    const coordinator = { getSnapshot: (id: string) => (id === "mod-1" ? failedSnapshot : undefined) } as unknown as ScanCoordinator;
+    const coordinator = {
+      getSnapshot: (id: string) => (id === "mod-1" ? failedSnapshot : undefined),
+    } as unknown as ScanCoordinator;
     const manager = new StatusBarManager(coordinator);
     manager.setModules([dummyModule]);
 
@@ -97,7 +99,7 @@ suite("StatusBarManager Test Suite", () => {
           installedVersion: "v1.0.0",
           availableVersion: "v1.1.0",
           retractionRationales: [],
-          errors: []
+          errors: [],
         },
         {
           modulePath: "example.com/dep2",
@@ -105,15 +107,17 @@ suite("StatusBarManager Test Suite", () => {
           availableVersion: "v1.2.0",
           deprecatedMessage: "deprecated",
           retractionRationales: ["retracted rationale"],
-          errors: []
-        }
+          errors: [],
+        },
       ],
       replacements: [],
       vulnerabilities: notRunVulnerabilities,
-      errors: []
+      errors: [],
     };
 
-    const coordinator = { getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined) } as unknown as ScanCoordinator;
+    const coordinator = {
+      getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined),
+    } as unknown as ScanCoordinator;
     const manager = new StatusBarManager(coordinator);
     manager.setModules([dummyModule]);
 
@@ -138,15 +142,17 @@ suite("StatusBarManager Test Suite", () => {
           installedVersion: "v1.0.0",
           availableVersion: "v1.1.0",
           retractionRationales: [],
-          errors: []
-        }
+          errors: [],
+        },
       ],
       replacements: [],
       vulnerabilities: notRunVulnerabilities,
-      errors: []
+      errors: [],
     };
 
-    const coordinator = { getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined) } as unknown as ScanCoordinator;
+    const coordinator = {
+      getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined),
+    } as unknown as ScanCoordinator;
     const manager = new StatusBarManager(coordinator);
     manager.setModules([dummyModule]);
 
@@ -169,12 +175,14 @@ suite("StatusBarManager Test Suite", () => {
         state: "unavailable",
         findings: [],
         advisories: {},
-        errors: [{ code: "tool-not-found", message: "Vulnerability analysis is unavailable." }]
+        errors: [{ code: "tool-not-found", message: "Vulnerability analysis is unavailable." }],
       },
-      errors: []
+      errors: [],
     };
 
-    const coordinator = { getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined) } as unknown as ScanCoordinator;
+    const coordinator = {
+      getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined),
+    } as unknown as ScanCoordinator;
     const manager = new StatusBarManager(coordinator);
     manager.setModules([dummyModule]);
 
@@ -197,8 +205,8 @@ suite("StatusBarManager Test Suite", () => {
           installedVersion: "v1.0.0",
           availableVersion: "v1.1.0",
           retractionRationales: [],
-          errors: []
-        }
+          errors: [],
+        },
       ],
       replacements: [],
       vulnerabilities: {
@@ -208,16 +216,18 @@ suite("StatusBarManager Test Suite", () => {
             osvId: "GO-2026-0001",
             fixedVersion: "v1.2.3",
             classification: "reachable",
-            trace: [{ module: "example.com/dep1", version: "v1.0.0" }]
-          }
+            trace: [{ module: "example.com/dep1", version: "v1.0.0" }],
+          },
         ],
         advisories: {},
-        errors: []
+        errors: [],
       },
-      errors: []
+      errors: [],
     };
 
-    const coordinator = { getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined) } as unknown as ScanCoordinator;
+    const coordinator = {
+      getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined),
+    } as unknown as ScanCoordinator;
     const manager = new StatusBarManager(coordinator);
     manager.setModules([dummyModule]);
 
@@ -241,27 +251,29 @@ suite("StatusBarManager Test Suite", () => {
           installedVersion: "v1.0.0",
           availableVersion: "v1.1.0",
           retractionRationales: [],
-          errors: []
-        }
+          errors: [],
+        },
       ],
       replacements: [],
       vulnerabilities: {
         state: "unavailable",
         findings: [],
         advisories: {},
-        errors: [{ code: "tool-not-found", message: "Vulnerability analysis is unavailable." }]
+        errors: [{ code: "tool-not-found", message: "Vulnerability analysis is unavailable." }],
       },
-      errors: []
+      errors: [],
     };
 
-    const coordinator = { getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined) } as unknown as ScanCoordinator;
+    const coordinator = {
+      getSnapshot: (id: string) => (id === "mod-1" ? snapshot : undefined),
+    } as unknown as ScanCoordinator;
     const manager = new StatusBarManager(coordinator);
     manager.setModules([dummyModule]);
 
     const item = manager.getStatusBarItem();
     // Should prioritize showing updates (text should indicate update)
     assert.equal(item.text, "🐻 ModBear: 1 update");
-    
+
     // Tooltip should contain both the updates and the vulnerability analysis unavailable note
     const tooltipText = getTooltipText(item.tooltip);
     assert.ok(tooltipText.includes("Updates: 1"));

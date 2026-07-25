@@ -25,8 +25,8 @@ export class ProcessExecutionError extends Error {
   public constructor(
     message: string,
     public readonly kind: "spawn" | "timeout" | "cancelled" | "output-limit" | "exit-nonzero",
-    public readonly cause?: unknown,
-    public readonly result?: ProcessResult
+    public override readonly cause?: unknown,
+    public readonly result?: ProcessResult,
   ) {
     super(message);
     this.name = "ProcessExecutionError";
@@ -57,7 +57,7 @@ async function terminateProcessTree(child: ChildProcess): Promise<void> {
         const taskkill = spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
           shell: false,
           windowsHide: true,
-          stdio: "ignore"
+          stdio: "ignore",
         });
         taskkill.once("error", () => {
           killChild(child);
@@ -93,7 +93,7 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
       shell: false,
       windowsHide: true,
       detached: process.platform !== "win32",
-      stdio: ["ignore", "pipe", "pipe"]
+      stdio: ["ignore", "pipe", "pipe"],
     });
 
     const stdoutChunks: Buffer[] = [];
@@ -158,7 +158,7 @@ export function runProcess(options: ProcessOptions): Promise<ProcessResult> {
         signal,
         stdout: options.collectStdout !== false ? Buffer.concat(stdoutChunks).toString("utf8") : "",
         stderr: Buffer.concat(stderrChunks).toString("utf8"),
-        durationMs: Date.now() - started
+        durationMs: Date.now() - started,
       });
     });
   });

@@ -11,7 +11,8 @@
     "url": "https://github.com/Diaszano/modbear"
   },
   "engines": {
-    "vscode": "^1.109.0"
+    "vscode": "^1.125.0",
+    "node": ">=24 <25"
   },
   "categories": [
     "Linters",
@@ -34,7 +35,7 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "%workspaceTrust.description%",
+      "description": "Dependency scans execute the Go toolchain in the workspace.",
       "restrictedConfigurations": [
         "modBear.go.path",
         "modBear.govulncheck.path"
@@ -167,8 +168,16 @@
     "clean": "node -e \"const fs = require('fs'); ['out', 'dist'].forEach(d => fs.rmSync(d, { recursive: true, force: true })); fs.readdirSync('.').filter(f => f.endsWith('.vsix')).forEach(f => fs.rmSync(f, { force: true }))\"",
     "compile": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
-    "bundle": "node esbuild.mjs",
-    "watch": "node esbuild.mjs --watch",
+    "check-types": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tools.json --noEmit",
+    "bundle": "jiti esbuild.ts",
+    "bundle:prod": "jiti esbuild.ts --production",
+    "bundle:analyze": "jiti esbuild.ts --analyze",
+    "watch": "jiti esbuild.ts --watch",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
+    "prepare": "husky",
     "test:unit:run": "node --test 'out/test/unit/**/*.test.js'",
     "test:unit": "npm run compile && npm run test:unit:run",
     "test:integration:run": "node --test 'out/test/integration/**/*.test.js'",
@@ -177,11 +186,12 @@
     "test:extension": "npm run compile && npm run bundle && npm run test:extension:run",
     "test:commits": "bash .github/scripts/validate-commits.sh",
     "test:release": "node scripts/test-release-config.mjs",
+    "test:package": "node scripts/test-package-config.mjs",
     "test": "npm run compile && npm run test:unit:run && npm run test:integration:run",
-    "verify": "npm run compile && npm run test:unit:run && npm run test:integration:run",
-    "package": "npm run check && npm run bundle && vsce package --no-dependencies",
+    "verify": "npm run format:check && npm run lint && npm run check-types && npm run compile && npm run test:unit:run && npm run test:integration:run",
+    "package": "npm run check && npm run bundle:prod && vsce package --no-dependencies",
     "package:vsix": "npm run clean && npm run verify && npm run package",
-    "vscode:prepublish": "npm run clean && npm run bundle"
+    "vscode:prepublish": "npm run clean && npm run bundle:prod"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.1",
@@ -194,17 +204,23 @@
     "@semantic-release/npm": "^13.1.5",
     "@semantic-release/release-notes-generator": "^14.1.1",
     "@types/mocha": "^10.0.0",
-    "@types/node": "^22.0.0",
-    "@types/vscode": "^1.109.0",
+    "@types/node": "^22.20.1",
+    "@types/vscode": "^1.125.0",
     "@vscode/test-electron": "^3.0.0",
     "@vscode/vsce": "^3.0.0",
+    "@eslint/js": "^10.0.0",
     "conventional-changelog-conventionalcommits": "^10.2.1",
     "esbuild": "^0.28.1",
+    "eslint": "^10.7.0",
     "glob": "^11.0.0",
+    "husky": "^9.1.7",
+    "jiti": "^2.7.0",
     "js-yaml": "^5.2.1",
     "mocha": "^11.7.6",
+    "prettier": "3.9.6",
     "semantic-release": "^25.0.8",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.65.0"
   },
   "overrides": {
     "diff": "8.0.4",

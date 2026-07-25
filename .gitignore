@@ -1,8 +1,81 @@
+# Dependencies
 node_modules/
-out/
+
+# Build and generated output
 dist/
+out/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+
+# VS Code extension tooling
 .vscode-test/
+.vscode-test-web/
 *.vsix
+*.tgz
+
+# Test and quality artifacts
+test-results/
+junit.xml
+.eslintcache
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+
+# Local AI assistants, agents, and MCP configuration
+.claude/
+.codex/
+.gemini/
+.opencode/
+.cursor/
+.continue/
+.windsurf/
+.serena/
+.superpowers/
+.agentmemory/
+.headroom/
+.mcp/
+.mcp.json
+mcp.json
+.vscode/mcp.json
+.aider*
+CLAUDE.md
+GEMINI.md
+AGENTS.md
+.cursorrules
+.agents
+
+# IDE-specific local files
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.history/
+
+# Operating system metadata
 .DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+
+# Temporary files and local worktrees
+.cache/
+tmp/
+temp/
 .worktrees/
 worktrees/

@@ -7,6 +7,7 @@ This document details the security architecture, safety guarantees, and invarian
 ModBear enforces a strict read-only model. The extension **never** mutates module manifests (`go.mod`, `go.sum`, `go.work`) or alters the local Go environment.
 
 ### Forbidden Operations Matrix
+
 - **`go get`**: Strictly forbidden from being spawned or automatically executed by the extension. A suggestion may be displayed, copied, or inserted into a trusted-workspace terminal with `sendText(command, false)` so the user must press Enter.
 - **`go mod tidy`**: Forbidden in mutating form. (In future plans, only the safe read-only form `go mod tidy -diff` may be used).
 - **`go env -w`**: Strictly forbidden; ModBear never mutates environment configuration.
@@ -14,6 +15,7 @@ ModBear enforces a strict read-only model. The extension **never** mutates modul
 - **`shell: true`**: Strictly forbidden in subprocess options. All execution must bypass the system command shell.
 
 ### Enforcement
+
 - Subprocess invocations pass `GOFLAGS=-mod=readonly` to guarantee the Go toolchain will fail if any operation attempts file modification.
 - Automated repository verification checks run:
   ```bash
@@ -62,6 +64,7 @@ To ensure testing integrity and guarantee that extension tests do not cause disk
 ## 6. Privacy & Telemetry-Free Logging
 
 ModBear enforces a strict privacy policy:
+
 - **Zero Remote Telemetry**: The extension contains no telemetry, telemetry libraries, analytics collection, or remote tracking. No data is ever transmitted to external endpoints.
 - **Local Logging**: Log events (such as `scan.started`, `scan.finished`, `scan.failed`, and `scan.cancelled`) are only recorded locally to the VS Code Output Channel.
 - **Verbosity Enforcement**: Logging is strictly gated by the `modBear.output.logLevel` configuration.

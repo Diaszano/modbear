@@ -8,7 +8,7 @@ const requirement = {
   indirect: false,
   line: 0,
   moduleRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 13 } },
-  versionRange: { start: { line: 0, character: 14 }, end: { line: 0, character: 20 } }
+  versionRange: { start: { line: 0, character: 14 }, end: { line: 0, character: 20 } },
 };
 
 const status = {
@@ -18,7 +18,7 @@ const status = {
   updateKind: "minor" as const,
   deprecatedMessage: "use example.com/b",
   retractionRationales: ["bad release"],
-  errors: []
+  errors: [],
 };
 
 suite("updateDiagnosticMapper", () => {

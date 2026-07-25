@@ -14,12 +14,16 @@ export class ScanCoordinator {
   private readonly snapshots = new Map<string, ModuleAnalysisSnapshot>();
   public readonly events = new ScanEvents();
 
-  private readonly queue: Array<{ request: ModuleScanRequest; resolve: (snap: ModuleAnalysisSnapshot) => void; reject: (err: any) => void }> = [];
+  private readonly queue: {
+    request: ModuleScanRequest;
+    resolve: (snap: ModuleAnalysisSnapshot) => void;
+    reject: (err: any) => void;
+  }[] = [];
   private activeCount = 0;
 
   public constructor(
     private readonly getMaxConcurrentModules: () => number = () => 2,
-    private readonly logger?: Logger
+    private readonly logger?: Logger,
   ) {}
 
   public getSnapshot(moduleId: string): ModuleAnalysisSnapshot | undefined {
@@ -29,7 +33,7 @@ export class ScanCoordinator {
   public async scanModule(request: ModuleScanRequest): Promise<ModuleAnalysisSnapshot> {
     this.running.get(request.module.id)?.abort();
 
-    const existingIndex = this.queue.findIndex(item => item.request.module.id === request.module.id);
+    const existingIndex = this.queue.findIndex((item) => item.request.module.id === request.module.id);
     if (existingIndex !== -1) {
       const existing = this.queue.splice(existingIndex, 1)[0];
       existing?.reject(new Error("Scan cancelled"));
@@ -47,10 +51,13 @@ export class ScanCoordinator {
     while (this.activeCount < max && this.queue.length > 0) {
       const item = this.queue.shift()!;
       this.activeCount++;
-      this.runScan(item.request).then(item.resolve).catch(item.reject).finally(() => {
-        this.activeCount--;
-        this.processQueue();
-      });
+      this.runScan(item.request)
+        .then(item.resolve)
+        .catch(item.reject)
+        .finally(() => {
+          this.activeCount--;
+          this.processQueue();
+        });
     }
   }
 
@@ -75,7 +82,7 @@ export class ScanCoordinator {
               createdAt: new Date().toISOString(),
               stale: true,
               updateState: "partial",
-              errors: [{ code: classifyAnalysisError(err), message: "Dependency refresh failed." }]
+              errors: [{ code: classifyAnalysisError(err), message: "Dependency refresh failed." }],
             })
           : Object.freeze({
               moduleId: request.module.id,
@@ -86,7 +93,7 @@ export class ScanCoordinator {
               dependencies: [],
               replacements: [],
               vulnerabilities: { state: "not-run" as const, findings: [], advisories: {}, errors: [] },
-              errors: [{ code: classifyAnalysisError(err), message: "Dependency analysis failed." }]
+              errors: [{ code: classifyAnalysisError(err), message: "Dependency analysis failed." }],
             });
         this.snapshots.set(request.module.id, snapshot);
         this.events.emitSnapshot(snapshot);

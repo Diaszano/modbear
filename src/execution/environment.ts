@@ -7,6 +7,6 @@ export function appendReadonlyGoFlags(current: string | undefined): string {
 export function buildGoEnvironment(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   return {
     ...base,
-    GOFLAGS: appendReadonlyGoFlags(base.GOFLAGS)
+    GOFLAGS: appendReadonlyGoFlags(base.GOFLAGS),
   };
 }

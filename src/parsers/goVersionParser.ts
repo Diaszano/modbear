@@ -19,7 +19,7 @@ export function parseGoVersion(value: string): GoVersion | undefined {
     minor: Number(match[2]),
     patch: Number(match[3]),
     ...(match[4] ? { prerelease: match[4] } : {}),
-    pseudo: PSEUDO.test(value)
+    pseudo: PSEUDO.test(value),
   };
 }
 

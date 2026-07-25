@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import test from "node:test";
+import type { GoModDocumentCache } from "../../parsers/goModDocumentCache";
 
 type ModuleLoader = (request: string, parent: NodeModule | undefined, isMain: boolean) => unknown;
 
-async function loadGoModDocumentCache(): Promise<typeof import("../../parsers/goModDocumentCache")> {
+async function loadGoModDocumentCache(): Promise<{ GoModDocumentCache: typeof GoModDocumentCache }> {
   const nodeRequire = createRequire(__filename);
   const moduleLoader = nodeRequire("node:module") as { _load: ModuleLoader };
   const originalLoad = moduleLoader._load;
@@ -29,13 +30,13 @@ test("GoModDocumentCache caches parser results by document version", async () =>
   let getTextCalls = 0;
   const document: any = {
     uri: {
-      toString: () => "file:///mock/go.mod"
+      toString: () => "file:///mock/go.mod",
     },
     version: 1,
     getText: () => {
       getTextCalls++;
       return "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.9.1\n";
-    }
+    },
   };
 
   const res1 = cache.get(document);
@@ -57,13 +58,13 @@ test("GoModDocumentCache delete removes specific document entry", async () => {
   let getTextCalls = 0;
   const document: any = {
     uri: {
-      toString: () => "file:///mock/go.mod"
+      toString: () => "file:///mock/go.mod",
     },
     version: 1,
     getText: () => {
       getTextCalls++;
       return "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.9.1\n";
-    }
+    },
   };
 
   cache.get(document);
@@ -81,13 +82,13 @@ test("GoModDocumentCache clear flushes all document entries", async () => {
   let getTextCalls = 0;
   const document: any = {
     uri: {
-      toString: () => "file:///mock/go.mod"
+      toString: () => "file:///mock/go.mod",
     },
     version: 1,
     getText: () => {
       getTextCalls++;
       return "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.9.1\n";
-    }
+    },
   };
 
   cache.get(document);

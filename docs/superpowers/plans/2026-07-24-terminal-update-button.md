@@ -34,10 +34,12 @@
 ### Task 1: Safe Terminal Update Manager
 
 **Files:**
+
 - Create: `src/providers/terminalUpdateManager.ts`
 - Test: `src/test/unit/terminalUpdateManager.test.ts`
 
 **Interfaces:**
+
 - Consumes: an injected `TerminalFactory(options: TerminalCreationOptions): TerminalHandle`.
 - Produces: `PREPARE_UPDATE_COMMAND_ID`, `PrepareUpdateArgs`, `buildGoGetSuggestion(input)`, and `TerminalUpdateManager.prepare(input)` / `forget(terminal)`.
 
@@ -53,7 +55,7 @@ import {
   buildGoGetSuggestion,
   TerminalUpdateManager,
   type TerminalCreationOptions,
-  type TerminalHandle
+  type TerminalHandle,
 } from "../../providers/terminalUpdateManager";
 
 class FakeTerminal implements TerminalHandle {
@@ -72,25 +74,16 @@ class FakeTerminal implements TerminalHandle {
 const validInput = {
   moduleRoot: path.resolve("/workspace/app"),
   modulePath: "github.com/gin-gonic/gin",
-  version: "v1.10.1"
+  version: "v1.10.1",
 };
 
 test("builds the exact go get suggestion", () => {
-  assert.equal(
-    buildGoGetSuggestion(validInput),
-    "go get github.com/gin-gonic/gin@v1.10.1"
-  );
+  assert.equal(buildGoGetSuggestion(validInput), "go get github.com/gin-gonic/gin@v1.10.1");
 });
 
 test("rejects unsafe module paths and versions", () => {
-  assert.throws(
-    () => buildGoGetSuggestion({ ...validInput, modulePath: "example.com/mod;echo" }),
-    /module path/
-  );
-  assert.throws(
-    () => buildGoGetSuggestion({ ...validInput, version: "v1.2.3\nwhoami" }),
-    /version/
-  );
+  assert.throws(() => buildGoGetSuggestion({ ...validInput, modulePath: "example.com/mod;echo" }), /module path/);
+  assert.throws(() => buildGoGetSuggestion({ ...validInput, version: "v1.2.3\nwhoami" }), /version/);
 });
 
 test("creates a module-rooted terminal and fills without executing", () => {
@@ -105,10 +98,12 @@ test("creates a module-rooted terminal and fills without executing", () => {
 
   assert.deepEqual(created, [{ name: "ModBear", cwd: validInput.moduleRoot }]);
   assert.equal(terminal.showCalls, 1);
-  assert.deepEqual(terminal.sent, [{
-    text: "go get github.com/gin-gonic/gin@v1.10.1",
-    shouldExecute: false
-  }]);
+  assert.deepEqual(terminal.sent, [
+    {
+      text: "go get github.com/gin-gonic/gin@v1.10.1",
+      shouldExecute: false,
+    },
+  ]);
 });
 
 test("reuses a live terminal for the same module root", () => {
@@ -181,11 +176,7 @@ const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 export function parsePrepareUpdateArgs(input: unknown): PrepareUpdateArgs {
   if (!isRecord(input)) throw new Error("Invalid terminal update arguments.");
   const { moduleRoot, modulePath, version } = input;
-  if (
-    typeof moduleRoot !== "string" ||
-    !path.isAbsolute(moduleRoot) ||
-    CONTROL_CHARACTERS.test(moduleRoot)
-  ) {
+  if (typeof moduleRoot !== "string" || !path.isAbsolute(moduleRoot) || CONTROL_CHARACTERS.test(moduleRoot)) {
     throw new Error("Invalid module root.");
   }
   if (typeof modulePath !== "string" || !SAFE_MODULE_PATH.test(modulePath)) {
@@ -250,10 +241,12 @@ git commit -m "feat: add safe terminal update manager"
 ### Task 2: Clickable Terminal Icon Inlay
 
 **Files:**
+
 - Modify: `src/providers/dependencyInlayHintsProvider.ts:1-58`
 - Modify: `src/test/suite/inlayHints.test.ts:1-96`
 
 **Interfaces:**
+
 - Consumes: `PREPARE_UPDATE_COMMAND_ID` and `PrepareUpdateArgs` from Task 1.
 - Produces: an `InlayHintLabelPart[]` where the `$(terminal)` part alone carries the command.
 
@@ -262,58 +255,66 @@ git commit -m "feat: add safe terminal update manager"
 In the first test in `src/test/suite/inlayHints.test.ts`, replace the label assertions after `assert.equal(hints[0]?.position.character, ...)` with:
 
 ```ts
-    const label = hints[0]?.label;
-    assert.ok(Array.isArray(label));
-    assert.equal(label[0]?.value, "$(terminal)");
-    assert.equal(label[0]?.command?.command, "modBear.prepareUpdateInTerminal");
-    assert.deepEqual(label[0]?.command?.arguments, [{
-      moduleRoot: module.moduleRoot,
-      modulePath: "github.com/gin-gonic/gin",
-      version: "v1.10.1"
-    }]);
-    assert.equal(label[1]?.value, " → v1.10.1 · minor");
-    assert.equal(label[1]?.command, undefined);
-    assert.equal(document.getText().includes("v1.10.1"), false);
+const label = hints[0]?.label;
+assert.ok(Array.isArray(label));
+assert.equal(label[0]?.value, "$(terminal)");
+assert.equal(label[0]?.command?.command, "modBear.prepareUpdateInTerminal");
+assert.deepEqual(label[0]?.command?.arguments, [
+  {
+    moduleRoot: module.moduleRoot,
+    modulePath: "github.com/gin-gonic/gin",
+    version: "v1.10.1",
+  },
+]);
+assert.equal(label[1]?.value, " → v1.10.1 · minor");
+assert.equal(label[1]?.command, undefined);
+assert.equal(document.getText().includes("v1.10.1"), false);
 ```
 
 Add this test before the hover test:
 
 ```ts
-  test("does not add the terminal action without an available version", async () => {
-    const document = await vscode.workspace.openTextDocument({
-      language: "go.mod",
-      content: "module example.com/app\n\nrequire example.com/old v1.0.0\n"
-    });
-    const module: ModuleContext = {
-      id: "/workspace/app",
-      moduleRoot: "/workspace/app",
-      goModPath: document.uri.fsPath
-    };
-    const snapshot: ModuleAnalysisSnapshot = {
-      moduleId: module.id,
-      contentHash: "fixture",
-      createdAt: new Date(0).toISOString(),
-      stale: false,
-      updateState: "complete",
-      dependencies: [{
+test("does not add the terminal action without an available version", async () => {
+  const document = await vscode.workspace.openTextDocument({
+    language: "go.mod",
+    content: "module example.com/app\n\nrequire example.com/old v1.0.0\n",
+  });
+  const module: ModuleContext = {
+    id: "/workspace/app",
+    moduleRoot: "/workspace/app",
+    goModPath: document.uri.fsPath,
+  };
+  const snapshot: ModuleAnalysisSnapshot = {
+    moduleId: module.id,
+    contentHash: "fixture",
+    createdAt: new Date(0).toISOString(),
+    stale: false,
+    updateState: "complete",
+    dependencies: [
+      {
         modulePath: "example.com/old",
         installedVersion: "v1.0.0",
         deprecatedMessage: "use example.com/new",
         retractionRationales: [],
-        errors: []
-      }],
-      replacements: [],
-      errors: []
-    };
-    const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
-    const provider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined);
+        errors: [],
+      },
+    ],
+    replacements: [],
+    errors: [],
+  };
+  const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+  const provider = new DependencyInlayHintsProvider(
+    coordinator,
+    () => module,
+    () => undefined,
+  );
 
-    const hints = provider.provideInlayHints(document);
+  const hints = provider.provideInlayHints(document);
 
-    assert.equal(hints.length, 1);
-    assert.equal(hints[0]?.label, "⚠ deprecated");
-    provider.dispose();
-  });
+  assert.equal(hints.length, 1);
+  assert.equal(hints[0]?.label, "⚠ deprecated");
+  provider.dispose();
+});
 ```
 
 - [ ] **Step 2: Run the extension test to verify it fails**
@@ -331,42 +332,39 @@ Expected: FAIL because the update hint label is still a string and has no termin
 Add this import to `src/providers/dependencyInlayHintsProvider.ts`:
 
 ```ts
-import {
-  PREPARE_UPDATE_COMMAND_ID,
-  type PrepareUpdateArgs
-} from "./terminalUpdateManager";
+import { PREPARE_UPDATE_COMMAND_ID, type PrepareUpdateArgs } from "./terminalUpdateManager";
 ```
 
 Replace the `vscode.InlayHint` construction block with:
 
 ```ts
-      let hintLabel: string | vscode.InlayHintLabelPart[] = finalLabel;
-      if (status?.availableVersion && vscode.workspace.isTrusted) {
-        const actionArgs: PrepareUpdateArgs = {
-          moduleRoot: module.moduleRoot,
-          modulePath: requirement.modulePath,
-          version: status.availableVersion
-        };
-        const terminalPart = new vscode.InlayHintLabelPart("$(terminal)");
-        terminalPart.tooltip = "Prepare the suggested go get command in the terminal";
-        terminalPart.command = {
-          command: PREPARE_UPDATE_COMMAND_ID,
-          title: "Prepare Update in Terminal",
-          arguments: [actionArgs]
-        };
-        const informationPart = new vscode.InlayHintLabelPart(` ${finalLabel}`);
-        hintLabel = [terminalPart, informationPart];
-      }
-      const hint = new vscode.InlayHint(
-        new vscode.Position(requirement.versionRange.end.line, requirement.versionRange.end.character),
-        hintLabel,
-        vscode.InlayHintKind.Type
-      );
-      hint.paddingLeft = true;
-      hint.tooltip = new vscode.MarkdownString(
-        `**${requirement.modulePath}**\n\nInstalled: \`${requirement.version}\`\n\n${finalLabel}`
-      );
-      return [hint];
+let hintLabel: string | vscode.InlayHintLabelPart[] = finalLabel;
+if (status?.availableVersion && vscode.workspace.isTrusted) {
+  const actionArgs: PrepareUpdateArgs = {
+    moduleRoot: module.moduleRoot,
+    modulePath: requirement.modulePath,
+    version: status.availableVersion,
+  };
+  const terminalPart = new vscode.InlayHintLabelPart("$(terminal)");
+  terminalPart.tooltip = "Prepare the suggested go get command in the terminal";
+  terminalPart.command = {
+    command: PREPARE_UPDATE_COMMAND_ID,
+    title: "Prepare Update in Terminal",
+    arguments: [actionArgs],
+  };
+  const informationPart = new vscode.InlayHintLabelPart(` ${finalLabel}`);
+  hintLabel = [terminalPart, informationPart];
+}
+const hint = new vscode.InlayHint(
+  new vscode.Position(requirement.versionRange.end.line, requirement.versionRange.end.character),
+  hintLabel,
+  vscode.InlayHintKind.Type,
+);
+hint.paddingLeft = true;
+hint.tooltip = new vscode.MarkdownString(
+  `**${requirement.modulePath}**\n\nInstalled: \`${requirement.version}\`\n\n${finalLabel}`,
+);
+return [hint];
 ```
 
 - [ ] **Step 4: Run provider and unit regression tests**
@@ -389,12 +387,14 @@ git commit -m "feat: add terminal action to update hints"
 ### Task 3: Trusted Command Wiring and Documentation
 
 **Files:**
+
 - Modify: `src/extension.ts:1-215`
 - Create: `src/test/suite/terminalUpdateCommand.test.ts`
 - Modify: `README.md:9-23`
 - Modify: `docs/security.md:5-29`
 
 **Interfaces:**
+
 - Consumes: `PREPARE_UPDATE_COMMAND_ID` and `TerminalUpdateManager` from Task 1; command arguments emitted by Task 2.
 - Produces: a registered internal command that checks Workspace Trust before any terminal interaction and releases closed terminals from the manager.
 
@@ -419,33 +419,35 @@ suite("Terminal update command", () => {
       show: () => undefined,
       sendText: (text: string, shouldExecute?: boolean) => {
         sent.push({ text, shouldExecute });
-      }
+      },
     } as vscode.Terminal;
     Object.defineProperty(vscode.window, "createTerminal", {
       configurable: true,
       value: (options: vscode.TerminalOptions) => {
         receivedOptions = options;
         return fakeTerminal;
-      }
+      },
     });
 
     try {
       await vscode.commands.executeCommand("modBear.prepareUpdateInTerminal", {
         moduleRoot: "/workspace/terminal-command-test",
         modulePath: "github.com/gin-gonic/gin",
-        version: "v1.10.1"
+        version: "v1.10.1",
       });
 
       assert.equal(receivedOptions?.name, "ModBear");
       assert.equal(receivedOptions?.cwd, "/workspace/terminal-command-test");
-      assert.deepEqual(sent, [{
-        text: "go get github.com/gin-gonic/gin@v1.10.1",
-        shouldExecute: false
-      }]);
+      assert.deepEqual(sent, [
+        {
+          text: "go get github.com/gin-gonic/gin@v1.10.1",
+          shouldExecute: false,
+        },
+      ]);
     } finally {
       Object.defineProperty(vscode.window, "createTerminal", {
         configurable: true,
-        value: originalCreateTerminal
+        value: originalCreateTerminal,
       });
     }
   });
@@ -461,40 +463,40 @@ suite("Terminal update command", () => {
     let terminalCreated = false;
     Object.defineProperty(vscode.workspace, "isTrusted", {
       configurable: true,
-      get: () => false
+      get: () => false,
     });
     Object.defineProperty(vscode.window, "createTerminal", {
       configurable: true,
       value: () => {
         terminalCreated = true;
         throw new Error("terminal must not be created");
-      }
+      },
     });
     Object.defineProperty(vscode.window, "showWarningMessage", {
       configurable: true,
-      value: async () => undefined
+      value: async () => undefined,
     });
 
     try {
       await vscode.commands.executeCommand("modBear.prepareUpdateInTerminal", {
         moduleRoot: "/workspace/untrusted-terminal-test",
         modulePath: "example.com/mod",
-        version: "v1.2.3"
+        version: "v1.2.3",
       });
 
       assert.equal(terminalCreated, false);
     } finally {
       Object.defineProperty(vscode.workspace, "isTrusted", {
         configurable: true,
-        get: () => originalIsTrusted
+        get: () => originalIsTrusted,
       });
       Object.defineProperty(vscode.window, "createTerminal", {
         configurable: true,
-        value: originalCreateTerminal
+        value: originalCreateTerminal,
       });
       Object.defineProperty(vscode.window, "showWarningMessage", {
         configurable: true,
-        value: originalShowWarningMessage
+        value: originalShowWarningMessage,
       });
     }
   });
@@ -516,18 +518,13 @@ Expected: FAIL because `modBear.prepareUpdateInTerminal` is not registered.
 Add this import to `src/extension.ts`:
 
 ```ts
-import {
-  PREPARE_UPDATE_COMMAND_ID,
-  TerminalUpdateManager
-} from "./providers/terminalUpdateManager";
+import { PREPARE_UPDATE_COMMAND_ID, TerminalUpdateManager } from "./providers/terminalUpdateManager";
 ```
 
 After `const statusBarManager = new StatusBarManager(coordinator);`, add:
 
 ```ts
-  const terminalUpdateManager = new TerminalUpdateManager(
-    (options) => vscode.window.createTerminal(options)
-  );
+const terminalUpdateManager = new TerminalUpdateManager((options) => vscode.window.createTerminal(options));
 ```
 
 Add this subscription to the first `context.subscriptions.push(...)` call:
@@ -554,7 +551,7 @@ Add this registration at the start of the command registration block:
 Change the untrusted-workspace warning in `requireTrustedWorkspace` to:
 
 ```ts
-  await vscode.window.showWarningMessage("Trust this workspace before running ModBear workspace actions.");
+await vscode.window.showWarningMessage("Trust this workspace before running ModBear workspace actions.");
 ```
 
 - [ ] **Step 4: Run the command integration tests**

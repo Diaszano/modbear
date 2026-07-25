@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["esbuild.ts", "eslint.config.ts"]
+}

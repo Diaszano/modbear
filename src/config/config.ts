@@ -36,6 +36,6 @@ export function readConfig(resource?: vscode.Uri): ExtensionConfig {
     vulnerabilityTimeoutSeconds: config.get("vulnerability.timeoutSeconds", DEFAULTS.vulnerabilityTimeoutSeconds),
     updateSeverity: config.get("diagnostics.updateSeverity", DEFAULTS.updateSeverity),
     maxConcurrentModules: config.get("scan.maxConcurrentModules", DEFAULTS.maxConcurrentModules),
-    logLevel: isLogLevel(configuredLogLevel) ? configuredLogLevel : DEFAULTS.logLevel
+    logLevel: isLogLevel(configuredLogLevel) ? configuredLogLevel : DEFAULTS.logLevel,
   };
 }

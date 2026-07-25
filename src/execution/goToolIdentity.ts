@@ -15,7 +15,7 @@ export async function getGoVersion(goExecutable: string): Promise<string> {
       cwd: process.cwd(),
       timeoutMs: 5000,
       stdoutLimitBytes: 1024 * 1024,
-      stderrLimitBytes: 1024 * 1024
+      stderrLimitBytes: 1024 * 1024,
     });
     const version = result.stdout.trim();
     versionCache.set(goExecutable, version);
@@ -33,7 +33,7 @@ export function getGoVersionSync(goExecutable: string): string {
   try {
     const result = spawnSync(goExecutable, ["version"], {
       encoding: "utf8",
-      timeout: 5000
+      timeout: 5000,
     });
     const version = (result.stdout || "").trim();
     versionCache.set(goExecutable, version);
