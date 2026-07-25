@@ -7,11 +7,11 @@ import {
   buildGoGetSuggestion,
   TerminalUpdateManager,
   type TerminalCreationOptions,
-  type TerminalHandle
+  type TerminalHandle,
 } from "../../providers/terminalUpdateManager";
 
 class FakeTerminal implements TerminalHandle {
-  public readonly sent: Array<{ text: string; shouldExecute: boolean | undefined }> = [];
+  public readonly sent: { text: string; shouldExecute: boolean | undefined }[] = [];
   public showCalls = 0;
 
   public show(): void {
@@ -26,32 +26,25 @@ class FakeTerminal implements TerminalHandle {
 const validInput = {
   moduleRoot: path.resolve("/workspace/app"),
   modulePath: "github.com/gin-gonic/gin",
-  version: "v1.10.1"
+  version: "v1.10.1",
 };
 
 function createModuleRoot(t: TestContext): string {
   const moduleRoot = mkdtempSync(path.join(os.tmpdir(), "modbear-terminal-update-"));
   writeFileSync(path.join(moduleRoot, "go.mod"), "module example.com/test\n");
-  t.after(() => rmSync(moduleRoot, { recursive: true, force: true }));
+  t.after(() => {
+    rmSync(moduleRoot, { recursive: true, force: true });
+  });
   return moduleRoot;
 }
 
 test("builds the exact go get suggestion", () => {
-  assert.equal(
-    buildGoGetSuggestion(validInput),
-    "go get github.com/gin-gonic/gin@v1.10.1"
-  );
+  assert.equal(buildGoGetSuggestion(validInput), "go get github.com/gin-gonic/gin@v1.10.1");
 });
 
 test("rejects unsafe module paths and versions", () => {
-  assert.throws(
-    () => buildGoGetSuggestion({ ...validInput, modulePath: "example.com/mod;echo" }),
-    /module path/
-  );
-  assert.throws(
-    () => buildGoGetSuggestion({ ...validInput, version: "v1.2.3\nwhoami" }),
-    /version/
-  );
+  assert.throws(() => buildGoGetSuggestion({ ...validInput, modulePath: "example.com/mod;echo" }), /module path/);
+  assert.throws(() => buildGoGetSuggestion({ ...validInput, version: "v1.2.3\nwhoami" }), /version/);
 });
 
 test("creates a module-rooted terminal and fills without executing", (t) => {
@@ -67,10 +60,12 @@ test("creates a module-rooted terminal and fills without executing", (t) => {
 
   assert.deepEqual(created, [{ name: "ModBear", cwd: input.moduleRoot }]);
   assert.equal(terminal.showCalls, 1);
-  assert.deepEqual(terminal.sent, [{
-    text: "go get github.com/gin-gonic/gin@v1.10.1",
-    shouldExecute: false
-  }]);
+  assert.deepEqual(terminal.sent, [
+    {
+      text: "go get github.com/gin-gonic/gin@v1.10.1",
+      shouldExecute: false,
+    },
+  ]);
 });
 
 test("reuses a live terminal for the same module root", (t) => {
@@ -102,30 +97,29 @@ test("forgets a closed terminal before the next preparation", (t) => {
 
 test("rejects unavailable module roots before creating a terminal", (t) => {
   const parent = mkdtempSync(path.join(os.tmpdir(), "modbear-terminal-unavailable-"));
-  t.after(() => rmSync(parent, { recursive: true, force: true }));
+  t.after(() => {
+    rmSync(parent, { recursive: true, force: true });
+  });
   let creations = 0;
   const manager = new TerminalUpdateManager(() => {
     creations += 1;
     return new FakeTerminal();
   });
 
-  assert.throws(
-    () => manager.prepare({ ...validInput, moduleRoot: path.join(parent, "missing") }),
-    /module root.*directory/i
-  );
+  assert.throws(() => {
+    manager.prepare({ ...validInput, moduleRoot: path.join(parent, "missing") });
+  }, /module root.*directory/i);
   assert.equal(creations, 0);
 
-  assert.throws(
-    () => manager.prepare({ ...validInput, moduleRoot: parent }),
-    /go\.mod.*regular file/i
-  );
+  assert.throws(() => {
+    manager.prepare({ ...validInput, moduleRoot: parent });
+  }, /go\.mod.*regular file/i);
   assert.equal(creations, 0);
 
   mkdirSync(path.join(parent, "go.mod"));
-  assert.throws(
-    () => manager.prepare({ ...validInput, moduleRoot: parent }),
-    /go\.mod.*regular file/i
-  );
+  assert.throws(() => {
+    manager.prepare({ ...validInput, moduleRoot: parent });
+  }, /go\.mod.*regular file/i);
   assert.equal(creations, 0);
 });
 
@@ -135,14 +129,16 @@ test("creates a fresh terminal after an interaction failure", (t) => {
     show: () => undefined,
     sendText: () => {
       throw new Error("terminal interaction failed");
-    }
+    },
   };
   const secondTerminal = new FakeTerminal();
   const terminals = [firstTerminal, secondTerminal];
   let creations = 0;
   const manager = new TerminalUpdateManager(() => terminals[creations++]!);
 
-  assert.throws(() => manager.prepare(input), /terminal interaction failed/);
+  assert.throws(() => {
+    manager.prepare(input);
+  }, /terminal interaction failed/);
   manager.prepare(input);
 
   assert.equal(creations, 2);

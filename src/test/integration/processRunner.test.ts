@@ -28,7 +28,7 @@ test("passes arguments without shell interpolation", async () => {
     cwd: process.cwd(),
     timeoutMs: 2_000,
     stdoutLimitBytes: 1024,
-    stderrLimitBytes: 1024
+    stderrLimitBytes: 1024,
   });
   assert.equal(result.exitCode, 0);
   assert.equal(result.stdout.trim(), "$(touch should-not-exist)");
@@ -41,7 +41,7 @@ test("captures a non-zero exit for the caller to classify", async () => {
     cwd: process.cwd(),
     timeoutMs: 2_000,
     stdoutLimitBytes: 1024,
-    stderrLimitBytes: 1024
+    stderrLimitBytes: 1024,
   });
   assert.equal(result.exitCode, 7);
   assert.match(result.stderr, /password/);
@@ -55,15 +55,15 @@ test("times out and marks the result", async () => {
       cwd: process.cwd(),
       timeoutMs: 20,
       stdoutLimitBytes: 1024,
-      stderrLimitBytes: 1024
+      stderrLimitBytes: 1024,
     }),
     (err: unknown) => {
       if (err instanceof ProcessExecutionError) {
         assert.equal(err.kind, "timeout");
-        return /timed out/.test(err.message);
+        return err.message.includes("timed out");
       }
       return false;
-    }
+    },
   );
 });
 
@@ -80,9 +80,9 @@ test("timeout terminates a spawned grandchild on POSIX", { skip: process.platfor
         cwd: process.cwd(),
         timeoutMs: 1_000,
         stdoutLimitBytes: 1024,
-        stderrLimitBytes: 1024
+        stderrLimitBytes: 1024,
       }),
-      (err: unknown) => err instanceof ProcessExecutionError && err.kind === "timeout"
+      (err: unknown) => err instanceof ProcessExecutionError && err.kind === "timeout",
     );
 
     grandchildPid = Number(await readFile(pidFile, "utf8"));
@@ -109,7 +109,7 @@ test("cancels execution when AbortSignal is aborted", async () => {
     timeoutMs: 10_000,
     stdoutLimitBytes: 1024,
     stderrLimitBytes: 1024,
-    signal: controller.signal
+    signal: controller.signal,
   });
   controller.abort();
   await assert.rejects(promise, (err: unknown) => {
@@ -129,7 +129,7 @@ test("rejects when stdout exceeds output limit", async () => {
       cwd: process.cwd(),
       timeoutMs: 2_000,
       stdoutLimitBytes: 5,
-      stderrLimitBytes: 1024
+      stderrLimitBytes: 1024,
     }),
     (err: unknown) => {
       if (err instanceof ProcessExecutionError) {
@@ -137,6 +137,6 @@ test("rejects when stdout exceeds output limit", async () => {
         return true;
       }
       return false;
-    }
+    },
   );
 });

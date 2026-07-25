@@ -19,20 +19,23 @@
 ### Task 1: Command & Menu Registration in `package.json`
 
 **Files:**
+
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Consumes: None
 - Produces: Command definition for `modBear.showStatusBarMenu`
 
 - [ ] **Step 1: Modify `package.json` to register the new command**
 
   Add the command `modBear.showStatusBarMenu` to the `contributes.commands` array:
+
   ```json
-        {
-          "command": "modBear.showStatusBarMenu",
-          "title": "ModBear: Show Status Bar Menu"
-        }
+  {
+    "command": "modBear.showStatusBarMenu",
+    "title": "ModBear: Show Status Bar Menu"
+  }
   ```
 
 - [ ] **Step 2: Commit**
@@ -47,15 +50,18 @@
 ### Task 2: Implement `StatusBarManager` Class
 
 **Files:**
+
 - Create: `src/providers/statusBarManager.ts`
 
 **Interfaces:**
+
 - Consumes: `ScanCoordinator` and `ModuleContext` types.
 - Produces: `StatusBarManager` class with lifecycle management for status bar item.
 
 - [ ] **Step 1: Create `src/providers/statusBarManager.ts` with complete implementation**
 
   Create [statusBarManager.ts](file:///home/diaszano/Documentos/Github/modbear/src/providers/statusBarManager.ts):
+
   ```typescript
   import * as vscode from "vscode";
   import type { ScanCoordinator } from "../orchestration/scanCoordinator";
@@ -69,10 +75,7 @@
 
     constructor(coordinator: ScanCoordinator) {
       this.coordinator = coordinator;
-      this.statusBarItem = vscode.window.createStatusBarItem(
-        vscode.StatusBarAlignment.Right,
-        100
-      );
+      this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
       this.statusBarItem.command = "modBear.showStatusBarMenu";
       this.statusBarItem.show();
       this.update();
@@ -160,9 +163,11 @@
 ### Task 3: Hook `StatusBarManager` into `extension.ts` & Register Quick Pick Menu Command
 
 **Files:**
+
 - Modify: `src/extension.ts`
 
 **Interfaces:**
+
 - Consumes: `StatusBarManager` from `src/providers/statusBarManager.ts`
 - Produces: Registration of `modBear.showStatusBarMenu` command, status bar lifecycle events hooks.
 
@@ -176,21 +181,24 @@
   - Register the `modBear.showStatusBarMenu` command.
 
   Let's define the command details:
+
   ```typescript
   import { StatusBarManager } from "./providers/statusBarManager";
   ```
 
   Inside `activate`:
+
   ```typescript
   const statusBarManager = new StatusBarManager(coordinator);
   context.subscriptions.push(statusBarManager);
   ```
 
   Hooking module discovery:
+
   ```typescript
   if (vscode.workspace.isTrusted) {
-    const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
-    discoverModules(roots, new AbortController().signal).then(m => {
+    const roots = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
+    discoverModules(roots, new AbortController().signal).then((m) => {
       modules = m;
       statusBarManager.setModules(m);
     });
@@ -198,6 +206,7 @@
   ```
 
   Hooking scanner events:
+
   ```typescript
   coordinator.events.onSnapshot((snapshot) => {
     statusBarManager.markScanFinished(snapshot.moduleId);
@@ -206,6 +215,7 @@
   ```
 
   In `requestScan`:
+
   ```typescript
   const requestScan = async (module: ModuleContext) => {
     const config = getConfig();
@@ -215,35 +225,46 @@
       goPath = await resolveTool(config.goPath, "go");
     } catch (err) {
       statusBarManager.markScanFinished(module.id);
-      vscode.window.showWarningMessage(`ModBear: Could not resolve go executable (${config.goPath}): ${err instanceof Error ? err.message : err}`);
+      vscode.window.showWarningMessage(
+        `ModBear: Could not resolve go executable (${config.goPath}): ${err instanceof Error ? err.message : err}`,
+      );
       return;
     }
-    const scanner = new ModuleScanner(cache, goPath, config.timeoutSeconds * 1000, config.updateTtlMinutes * 60000, output);
-    coordinator.scanModule({
-      module,
-      contentHash: "",
-      run: (signal) => scanner.scan(module, signal)
-    }).catch(err => {
-      statusBarManager.markScanFinished(module.id);
-      output.error(`Scan failed for ${module.id}: ${err}`);
-    });
+    const scanner = new ModuleScanner(
+      cache,
+      goPath,
+      config.timeoutSeconds * 1000,
+      config.updateTtlMinutes * 60000,
+      output,
+    );
+    coordinator
+      .scanModule({
+        module,
+        contentHash: "",
+        run: (signal) => scanner.scan(module, signal),
+      })
+      .catch((err) => {
+        statusBarManager.markScanFinished(module.id);
+        output.error(`Scan failed for ${module.id}: ${err}`);
+      });
   };
   ```
 
   And inside commands:
+
   ```typescript
   vscode.commands.registerCommand("modBear.showStatusBarMenu", async () => {
     const items = [
       {
         label: "$(sync) Scan Workspace",
         description: "Force scan all Go modules in the workspace",
-        action: () => vscode.commands.executeCommand("modBear.scanWorkspace")
+        action: () => vscode.commands.executeCommand("modBear.scanWorkspace"),
       },
       {
         label: "$(output) Show Output Logs",
         description: "Open ModBear's output channel to view logs",
-        action: () => vscode.commands.executeCommand("modBear.showOutput")
-      }
+        action: () => vscode.commands.executeCommand("modBear.showOutput"),
+      },
     ];
 
     // Dynamic section for modules
@@ -254,8 +275,10 @@
         if (snap.updateState === "failed") {
           detail = "Scan failed";
         } else {
-          const updates = snap.dependencies.filter(d => d.availableVersion).length;
-          const warnings = snap.dependencies.filter(d => d.deprecatedMessage || d.retractionRationales.length > 0 || d.errors.length > 0).length;
+          const updates = snap.dependencies.filter((d) => d.availableVersion).length;
+          const warnings = snap.dependencies.filter(
+            (d) => d.deprecatedMessage || d.retractionRationales.length > 0 || d.errors.length > 0,
+          ).length;
           detail = updates === 0 && warnings === 0 ? "Up to date" : `${updates} updates, ${warnings} warnings`;
         }
       }
@@ -265,19 +288,19 @@
         action: async () => {
           const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(module.goModPath));
           await vscode.window.showTextDocument(doc);
-        }
+        },
       });
     }
 
     const selected = await vscode.window.showQuickPick(items, {
       title: "ModBear: Go Dependency Insights",
-      placeHolder: "Select an action or module"
+      placeHolder: "Select an action or module",
     });
 
     if (selected) {
       await selected.action();
     }
-  })
+  });
   ```
 
 - [ ] **Step 2: Commit**
@@ -292,15 +315,18 @@
 ### Task 4: Extension Integration Tests
 
 **Files:**
+
 - Create: `src/test/suite/statusBarManager.test.ts`
 
 **Interfaces:**
+
 - Consumes: `StatusBarManager`, `ScanCoordinator`
 - Produces: Test verification for status bar behaviors.
 
 - [ ] **Step 1: Create `src/test/suite/statusBarManager.test.ts`**
 
   Create [statusBarManager.test.ts](file:///home/diaszano/Documentos/Github/modbear/src/test/suite/statusBarManager.test.ts):
+
   ```typescript
   import assert from "node:assert/strict";
   import * as vscode from "vscode";
@@ -313,11 +339,11 @@
     test("initializes correctly and updates states", async () => {
       const coordinator = new ScanCoordinator();
       const manager = new StatusBarManager(coordinator);
-      
+
       const item = manager.getStatusBarItem();
       assert.ok(item);
       assert.equal(item.command, "modBear.showStatusBarMenu");
-      
+
       // Default state with no modules
       assert.equal(item.text, "🐻 ModBear: OK");
       assert.match(item.tooltip as string, /All Go modules analyzed/);
@@ -334,9 +360,9 @@
       const module: ModuleContext = {
         id: "mod-1",
         moduleRoot: "/workspace/mod-1",
-        goModPath: "/workspace/mod-1/go.mod"
+        goModPath: "/workspace/mod-1/go.mod",
       };
-      
+
       const mockSnapshot: ModuleAnalysisSnapshot = {
         moduleId: "mod-1",
         contentHash: "fixture",
@@ -349,16 +375,16 @@
             installedVersion: "v1.0.0",
             availableVersion: "v1.1.0",
             retractionRationales: [],
-            errors: []
-          }
+            errors: [],
+          },
         ],
         replacements: [],
-        errors: []
+        errors: [],
       };
 
       // Mock coordinator getSnapshot
-      coordinator.getSnapshot = (id) => id === "mod-1" ? mockSnapshot : undefined;
-      
+      coordinator.getSnapshot = (id) => (id === "mod-1" ? mockSnapshot : undefined);
+
       manager.setModules([module]);
       assert.equal(item.text, "🐻 ModBear: 1 update");
       assert.match(item.tooltip as string, /Updates: 1/);
@@ -371,9 +397,11 @@
 - [ ] **Step 2: Run extension tests to verify implementation**
 
   Run command:
+
   ```bash
   npm run compile && npm run bundle && node out/test/runExtensionTests.js
   ```
+
   Expected: All extension tests pass.
 
 - [ ] **Step 3: Commit**

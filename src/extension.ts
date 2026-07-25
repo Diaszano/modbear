@@ -7,17 +7,14 @@ import { ModuleScanner } from "./orchestration/moduleScanner";
 import { DependencyHoverProvider } from "./providers/dependencyHoverProvider";
 import { DependencyInlayHintsProvider } from "./providers/dependencyInlayHintsProvider";
 import { StatusBarManager } from "./providers/statusBarManager";
-import {
-  PREPARE_UPDATE_COMMAND_ID,
-  TerminalUpdateManager
-} from "./providers/terminalUpdateManager";
+import { PREPARE_UPDATE_COMMAND_ID, TerminalUpdateManager } from "./providers/terminalUpdateManager";
 import { discoverModules, type ModuleDiscoveryResult } from "./discovery/moduleDiscovery";
 import { resolveActiveModule } from "./discovery/activeModuleResolver";
 import { readConfig } from "./config/config";
 import { mapUpdateDiagnostics } from "./diagnostics/updateDiagnosticMapper";
 import { mapReplacementDiagnostics } from "./diagnostics/replacementDiagnosticMapper";
 import { GoModDocumentCache } from "./parsers/goModDocumentCache";
-import { ModuleAnalysisSnapshot, getSnapshotMetrics } from "./domain/analysis";
+import { getSnapshotMetrics } from "./domain/analysis";
 import type { ModuleContext } from "./domain/module";
 import { Logger } from "./logging/logger";
 import { resolveTool } from "./execution/toolResolver";
@@ -37,19 +34,17 @@ async function requireTrustedWorkspace(): Promise<boolean> {
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const output = new Logger(() => readConfig().logLevel);
   const diagnosticManager = new DiagnosticManager();
-  
+
   const cachePath = context.globalStorageUri.fsPath;
   const cache = new AnalysisCache(cachePath);
   const coordinator = new ScanCoordinator(() => getConfig().maxConcurrentModules, output);
   const statusBarManager = new StatusBarManager(coordinator);
-  const terminalUpdateManager = new TerminalUpdateManager(
-    (options) => vscode.window.createTerminal(options)
-  );
-  
+  const terminalUpdateManager = new TerminalUpdateManager((options) => vscode.window.createTerminal(options));
+
   let modules: readonly ModuleContext[] = [];
-  
+
   const resolveModule = (uri: vscode.Uri) => resolveActiveModule(uri.fsPath, modules);
-  
+
   const getConfig = () => readConfig();
   let vulnerabilityCoordinator: VulnerabilityCoordinator | undefined;
 
@@ -57,26 +52,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (error instanceof ProcessExecutionError) {
       output.event("error", name, {
         kind: error.kind,
-        ...(error.result?.stderr ? { stderr: error.result.stderr } : {})
+        ...(error.result?.stderr ? { stderr: error.result.stderr } : {}),
       });
       return;
     }
     output.event("error", name, {
-      detail: error instanceof Error ? error.message : String(error)
+      detail: error instanceof Error ? error.message : String(error),
     });
   };
 
   const logWarning = (name: string, error: unknown): void => {
     output.event("warn", name, {
-      detail: error instanceof Error ? error.message : String(error)
+      detail: error instanceof Error ? error.message : String(error),
     });
   };
-  
+
   const requestScan = async (module: ModuleContext) => {
     if (!vscode.workspace.isTrusted) return;
     const config = getConfig();
     if (!config.enabled) return;
-    let goPath = config.goPath;
+    let goPath: string;
     statusBarManager.markScanStarted(module.id);
     try {
       goPath = await resolveTool(config.goPath, "go");
@@ -91,7 +86,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           enabled: true,
           govulncheckPath: config.govulncheckPath,
           timeoutMs: config.vulnerabilityTimeoutSeconds * 1000,
-          coordinator: vulnerabilityCoordinator ??= new VulnerabilityCoordinator()
+          coordinator: (vulnerabilityCoordinator ??= new VulnerabilityCoordinator()),
         }
       : undefined;
     const scanner = new ModuleScanner(
@@ -100,25 +95,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       config.timeoutSeconds * 1000,
       config.updateTtlMinutes * 60000,
       output,
-      vulnerability
+      vulnerability,
     );
-    coordinator.scanModule({
-      module,
-      contentHash: "",
-      run: (signal) => scanner.scan(module, signal)
-    }).catch(err => {
-      if (err instanceof Error && err.message === "Scan cancelled") {
-        statusBarManager.markScanFinished(module.id);
-        return;
-      }
-      // Failure is already logged by ModuleScanner.scan
-    });
+    coordinator
+      .scanModule({
+        module,
+        contentHash: "",
+        run: (signal) => scanner.scan(module, signal),
+      })
+      .catch((err) => {
+        if (err instanceof Error && err.message === "Scan cancelled") {
+          statusBarManager.markScanFinished(module.id);
+          return;
+        }
+        // Failure is already logged by ModuleScanner.scan
+      });
   };
 
   const documentCache = new GoModDocumentCache();
 
   const hoverProvider = new DependencyHoverProvider(coordinator, resolveModule, documentCache);
-  const inlayProvider = new DependencyInlayHintsProvider(coordinator, resolveModule, requestScan, documentCache);
+  const inlayProvider = new DependencyInlayHintsProvider(
+    coordinator,
+    resolveModule,
+    (module) => void requestScan(module),
+    documentCache,
+  );
 
   context.subscriptions.push(
     output,
@@ -127,15 +129,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     inlayProvider,
     statusBarManager,
     documentCache,
-    vscode.workspace.onDidCloseTextDocument((doc) => documentCache.delete(doc.uri)),
-    vscode.window.onDidCloseTerminal((terminal) => terminalUpdateManager.forget(terminal))
+    vscode.workspace.onDidCloseTextDocument((doc) => {
+      documentCache.delete(doc.uri);
+    }),
+    vscode.window.onDidCloseTerminal((terminal) => {
+      terminalUpdateManager.forget(terminal);
+    }),
   );
 
   const documentSelector: vscode.DocumentSelector = { pattern: "**/go.mod", scheme: "file" };
-  
+
   context.subscriptions.push(
     vscode.languages.registerHoverProvider(documentSelector, hoverProvider),
-    vscode.languages.registerInlayHintsProvider(documentSelector, inlayProvider)
+    vscode.languages.registerInlayHintsProvider(documentSelector, inlayProvider),
   );
 
   const handleDiscoveryResult = (result: ModuleDiscoveryResult) => {
@@ -148,10 +154,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   };
 
   if (vscode.workspace.isTrusted) {
-    const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
+    const roots = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
     discoverModules(roots, new AbortController().signal)
       .then(handleDiscoveryResult)
-      .catch(err => logFailure("discovery.failed", err));
+      .catch((err) => {
+        logFailure("discovery.failed", err);
+      });
   }
 
   coordinator.events.onSnapshot((snapshot) => {
@@ -161,54 +169,63 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (snapshot.updateState === "failed") {
       void vscode.window.showWarningMessage("ModBear: Dependency scan failed. See the output for details.");
     }
-    const module = modules.find(m => m.id === snapshot.moduleId);
+    const module = modules.find((m) => m.id === snapshot.moduleId);
     if (!module) return;
-    
+
     const uri = vscode.Uri.file(module.goModPath);
-    vscode.workspace.openTextDocument(uri).then(doc => {
-      const parsed = documentCache.get(doc);
-      const diagnostics: vscode.Diagnostic[] = [];
-      const config = readConfig(doc.uri);
-      
-      const dependenciesByPath = new Map(snapshot.dependencies.map(status => [status.modulePath, status]));
-      for (const req of parsed.requirements) {
-        const status = dependenciesByPath.get(req.modulePath);
-        if (status) {
-          diagnostics.push(...mapUpdateDiagnostics(req, status, config.updateSeverity));
+    vscode.workspace.openTextDocument(uri).then(
+      (doc) => {
+        const parsed = documentCache.get(doc);
+        const diagnostics: vscode.Diagnostic[] = [];
+        const config = readConfig(doc.uri);
+
+        const dependenciesByPath = new Map(snapshot.dependencies.map((status) => [status.modulePath, status]));
+        for (const req of parsed.requirements) {
+          const status = dependenciesByPath.get(req.modulePath);
+          if (status) {
+            diagnostics.push(...mapUpdateDiagnostics(req, status, config.updateSeverity));
+          }
         }
-      }
-      
-      for (const rep of parsed.replacements) {
-        const status = snapshot.replacements.find(r => r.sourcePath === rep.oldPath);
-        if (status) {
-          diagnostics.push(...mapReplacementDiagnostics(rep, status));
+
+        for (const rep of parsed.replacements) {
+          const status = snapshot.replacements.find((r) => r.sourcePath === rep.oldPath);
+          if (status) {
+            diagnostics.push(...mapReplacementDiagnostics(rep, status));
+          }
         }
-      }
-      
-      diagnostics.push(...mapVulnerabilityDiagnostics(parsed.requirements, snapshot.vulnerabilities));
-      
-      diagnosticManager.set(doc.uri, diagnostics);
-    }, err => logFailure("diagnostics.open.failed", err));
+
+        diagnostics.push(...mapVulnerabilityDiagnostics(parsed.requirements, snapshot.vulnerabilities));
+
+        diagnosticManager.set(doc.uri, diagnostics);
+      },
+      (err) => {
+        logFailure("diagnostics.open.failed", err);
+      },
+    );
   });
 
-  const scheduler = new ScanScheduler(requestScan);
+  const scheduler = new ScanScheduler((module) => void requestScan(module));
   activeScheduler = scheduler;
   context.subscriptions.push(scheduler);
 
   const triggerScan = (doc: vscode.TextDocument, isSave: boolean) => {
     if (!doc.fileName.endsWith("go.mod")) return;
     if (!vscode.workspace.isTrusted) return;
-    
+
     const module = resolveModule(doc.uri);
     if (!module) return;
-    
+
     const config = readConfig(doc.uri);
     scheduler.triggerScan(module, isSave, config);
   };
 
   context.subscriptions.push(
-    vscode.workspace.onDidOpenTextDocument(doc => triggerScan(doc, false)),
-    vscode.workspace.onDidSaveTextDocument(doc => triggerScan(doc, true))
+    vscode.workspace.onDidOpenTextDocument((doc) => {
+      triggerScan(doc, false);
+    }),
+    vscode.workspace.onDidSaveTextDocument((doc) => {
+      triggerScan(doc, true);
+    }),
   );
 
   context.subscriptions.push(
@@ -225,7 +242,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("modBear.scanWorkspace", async () => {
       if (!(await requireTrustedWorkspace())) return;
       output.info("Manual scan triggered");
-      const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
+      const roots = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
       let result: ModuleDiscoveryResult;
       try {
         result = await discoverModules(roots, new AbortController().signal);
@@ -235,7 +252,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return;
       }
       handleDiscoveryResult(result);
-      for (const module of modules) requestScan(module);
+      for (const module of modules) void requestScan(module);
     }),
     vscode.commands.registerCommand("modBear.copySuggestion", async (suggestion: string) => {
       await vscode.env.clipboard.writeText(suggestion);
@@ -248,13 +265,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         {
           label: "$(sync) Scan Workspace",
           description: "Force scan all Go modules in the workspace",
-          action: () => vscode.commands.executeCommand("modBear.scanWorkspace")
+          action: () => vscode.commands.executeCommand("modBear.scanWorkspace"),
         },
         {
           label: "$(output) Show Output Logs",
           description: "Open ModBear's output channel to view logs",
-          action: () => vscode.commands.executeCommand("modBear.showOutput")
-        }
+          action: () => vscode.commands.executeCommand("modBear.showOutput"),
+        },
       ];
 
       for (const module of modules) {
@@ -279,19 +296,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
               logFailure("module.open.failed", err);
               vscode.window.showErrorMessage("ModBear: Could not open module file.");
             }
-          }
+          },
         });
       }
 
       const selected = await vscode.window.showQuickPick(items, {
         title: "ModBear: Go Dependency Insights",
-        placeHolder: "Select an action or module"
+        placeHolder: "Select an action or module",
       });
 
       if (selected) {
         await selected.action();
       }
-    })
+    }),
   );
 
   output.info(`${EXTENSION_ID} activated; trusted=${vscode.workspace.isTrusted}`);
@@ -315,15 +332,9 @@ export interface ScanSchedulerConfig {
 export class ScanScheduler implements vscode.Disposable {
   private readonly scanTimeouts = new Map<string, NodeJS.Timeout>();
 
-  public constructor(
-    private readonly requestScan: (module: ModuleContext) => void
-  ) {}
+  public constructor(private readonly requestScan: (module: ModuleContext) => void) {}
 
-  public triggerScan(
-    module: ModuleContext,
-    isSave: boolean,
-    config: ScanSchedulerConfig
-  ): void {
+  public triggerScan(module: ModuleContext, isSave: boolean, config: ScanSchedulerConfig): void {
     if (!config.enabled) return;
     if (isSave && !config.onSave) return;
     if (!isSave && !config.onOpen) return;

@@ -1,14 +1,10 @@
-import type {
-  GoModReplacement,
-  GoModRequirement,
-  ParsedGoMod
-} from "../domain/dependency";
+import type { GoModReplacement, GoModRequirement, ParsedGoMod } from "../domain/dependency";
 import type { TextRange } from "../domain/module";
 
 function range(line: number, start: number, value: string): TextRange {
   return {
     start: { line, character: start },
-    end: { line, character: start + value.length }
+    end: { line, character: start + value.length },
   };
 }
 
@@ -100,7 +96,7 @@ export function parseGoModPositions(text: string): ParsedGoMod {
         indirect: /\/\/\s*indirect\b/.test(raw),
         line,
         moduleRange: range(line, moduleStart, moduleToken),
-        versionRange: range(line, versionStart, versionToken)
+        versionRange: range(line, versionStart, versionToken),
       });
       continue;
     }
@@ -139,7 +135,7 @@ export function parseGoModPositions(text: string): ParsedGoMod {
         ...(newVersion ? { newVersion } : {}),
         local: isLocalReplacement(newPath),
         line,
-        range: range(line, newPathStart, newPathToken)
+        range: range(line, newPathStart, newPathToken),
       });
     }
   }
@@ -149,6 +145,6 @@ export function parseGoModPositions(text: string): ParsedGoMod {
     ...(goDirective ? { go: goDirective } : {}),
     ...(toolchainDirective ? { toolchain: toolchainDirective } : {}),
     requirements,
-    replacements
+    replacements,
   };
 }

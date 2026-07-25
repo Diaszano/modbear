@@ -3,8 +3,24 @@ import test from "node:test";
 import { createCacheKey } from "../../cache/cacheKey";
 
 test("cache key changes with go.mod content and settings", () => {
-  const first = createCacheKey({ moduleRoot: "/x", goMod: "a", goSum: "", goWork: "", tool: "go", toolVersion: "go1.25", settings: { indirect: true } });
-  const second = createCacheKey({ moduleRoot: "/x", goMod: "b", goSum: "", goWork: "", tool: "go", toolVersion: "go1.25", settings: { indirect: true } });
+  const first = createCacheKey({
+    moduleRoot: "/x",
+    goMod: "a",
+    goSum: "",
+    goWork: "",
+    tool: "go",
+    toolVersion: "go1.25",
+    settings: { indirect: true },
+  });
+  const second = createCacheKey({
+    moduleRoot: "/x",
+    goMod: "b",
+    goSum: "",
+    goWork: "",
+    tool: "go",
+    toolVersion: "go1.25",
+    settings: { indirect: true },
+  });
   assert.notEqual(first, second);
 });
 
@@ -31,4 +47,3 @@ test("changing GOPROXY changes the cache key", () => {
     process.env.GOPROXY = original;
   }
 });
-

@@ -10,5 +10,5 @@ export const DEFAULTS = {
   vulnerabilityTimeoutSeconds: 600,
   updateSeverity: "none" as const,
   maxConcurrentModules: 2,
-  logLevel: "info" as const
+  logLevel: "info" as const,
 };

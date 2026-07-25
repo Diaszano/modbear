@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { GoModDocumentCache } from "../parsers/goModDocumentCache";
+import type { GoModDocumentCache } from "../parsers/goModDocumentCache";
 import type { ScanCoordinator } from "../orchestration/scanCoordinator";
 import type { ModuleContext } from "../domain/module";
 
@@ -7,19 +7,21 @@ export class DependencyHoverProvider implements vscode.HoverProvider {
   public constructor(
     private readonly coordinator: ScanCoordinator,
     private readonly resolveModule: (uri: vscode.Uri) => ModuleContext | undefined,
-    private readonly cache: GoModDocumentCache
+    private readonly cache: GoModDocumentCache,
   ) {}
 
   public provideHover(document: vscode.TextDocument, position: vscode.Position): vscode.Hover | undefined {
     const module = this.resolveModule(document.uri);
     const snapshot = module ? this.coordinator.getSnapshot(module.id) : undefined;
     if (!snapshot) return undefined;
-    const requirement = this.cache.get(document).requirements.find(
-      (item) =>
-        item.line === position.line &&
-        position.character >= item.versionRange.start.character &&
-        position.character <= item.versionRange.end.character
-    );
+    const requirement = this.cache
+      .get(document)
+      .requirements.find(
+        (item) =>
+          item.line === position.line &&
+          position.character >= item.versionRange.start.character &&
+          position.character <= item.versionRange.end.character,
+      );
     if (!requirement) return undefined;
     const status = snapshot.dependencies.find((item) => item.modulePath === requirement.modulePath);
     if (!status) return undefined;
@@ -39,7 +41,7 @@ export class DependencyHoverProvider implements vscode.HoverProvider {
       markdown.appendMarkdown(`Vulnerability analysis unavailable\n\n`);
     } else if (snapshot.vulnerabilities.state === "complete") {
       const findings = snapshot.vulnerabilities.findings.filter((finding) =>
-        finding.trace.some((frame) => frame.module === requirement.modulePath)
+        finding.trace.some((frame) => frame.module === requirement.modulePath),
       );
       if (findings.length > 0) {
         markdown.appendMarkdown(`### Vulnerabilities\n\n`);
@@ -59,12 +61,13 @@ export class DependencyHoverProvider implements vscode.HoverProvider {
       }
     }
 
-    if (status.availableVersion) markdown.appendCodeblock(`${["go", "get"].join(" ")} ${status.modulePath}@${status.availableVersion}`, "shell");
+    if (status.availableVersion)
+      markdown.appendCodeblock(`${["go", "get"].join(" ")} ${status.modulePath}@${status.availableVersion}`, "shell");
     markdown.appendMarkdown("Suggested commands are not executed by this extension.");
     return new vscode.Hover(markdown);
   }
 }
 
 function escapeMarkdown(value: string): string {
-  return value.replace(/[\\`*_{}\[\]()#+\-.!|>]/g, "\\$&");
+  return value.replace(/[\\`*_{}[\]()#+\-.!|>]/g, "\\$&");
 }

@@ -4,8 +4,9 @@ import type { ModuleContext } from "../domain/module";
 import { ProcessExecutionError } from "../execution/processRunner";
 import { analyzeReplacements, attachReplacementStatuses } from "../analyzers/replacementAnalyzer";
 import { analyzeUpdates, buildGoListArgs } from "../analyzers/updateAnalyzer";
-import { analyzeVulnerabilities, VulnerabilityCoordinator } from "../analyzers/vulnerabilityAnalyzer";
-import { AnalysisCache } from "../cache/analysisCache";
+import type { VulnerabilityCoordinator } from "../analyzers/vulnerabilityAnalyzer";
+import { analyzeVulnerabilities } from "../analyzers/vulnerabilityAnalyzer";
+import type { AnalysisCache } from "../cache/analysisCache";
 import { createCacheKey } from "../cache/cacheKey";
 import { getGoVersion } from "../execution/goToolIdentity";
 import { parseGoModPositions } from "../parsers/goModPositionParser";
@@ -25,19 +26,19 @@ export class ModuleScanner {
     private readonly timeoutMs: number,
     private readonly ttlMs: number,
     private readonly logger?: Logger,
-    private readonly vulnerability?: VulnerabilityScanOptions
+    private readonly vulnerability?: VulnerabilityScanOptions,
   ) {}
 
   public async scan(module: ModuleContext, signal: AbortSignal): Promise<ModuleAnalysisSnapshot> {
     const startTime = Date.now();
-    let isHit = false;
-    let contentHash = "";
+    let isHit: boolean;
+    let contentHash: string;
     try {
       const [goMod, goSum, goWork] = await Promise.all([
         readFile(module.goModPath, "utf8"),
         module.goSumPath ? readFile(module.goSumPath, "utf8").catch(() => "") : Promise.resolve(""),
         module.goWorkPath ? readFile(module.goWorkPath, "utf8").catch(() => "") : Promise.resolve(""),
-        getGoVersion(this.goExecutable).catch(() => "")
+        getGoVersion(this.goExecutable).catch(() => ""),
       ]);
       contentHash = createCacheKey({
         moduleRoot: module.moduleRoot,
@@ -49,8 +50,8 @@ export class ModuleScanner {
         vulnerability: this.vulnerability && {
           enabled: this.vulnerability.enabled,
           govulncheckPath: this.vulnerability.govulncheckPath,
-          timeoutMs: this.vulnerability.timeoutMs
-        }
+          timeoutMs: this.vulnerability.timeoutMs,
+        },
       });
       const cached = await this.cache.get(contentHash);
       isHit = !!(cached && Date.now() - Date.parse(cached.createdAt) <= this.ttlMs);
@@ -60,7 +61,7 @@ export class ModuleScanner {
       if (this.logger && typeof this.logger.event === "function") {
         this.logger.event("info", "scan.started", {
           kind: "updates",
-          cache: isHit ? "hit" : "miss"
+          cache: isHit ? "hit" : "miss",
         });
       }
 
@@ -70,7 +71,7 @@ export class ModuleScanner {
             outcome: "success",
             durationMs: Date.now() - startTime,
             cache: "hit",
-            dependencies: cached!.dependencies.length
+            dependencies: cached!.dependencies.length,
           });
         }
         return cached!;
@@ -86,10 +87,10 @@ export class ModuleScanner {
           requirements: parsed.requirements,
           goExecutable: this.goExecutable,
           timeoutMs: this.timeoutMs,
-          signal
+          signal,
         }),
         analyzeReplacements(module.moduleRoot, parsed.replacements),
-        this.analyzeVulnerabilities(module.moduleRoot, signal)
+        this.analyzeVulnerabilities(module.moduleRoot, signal),
       ]);
       const snapshot: ModuleAnalysisSnapshot = {
         moduleId: module.id,
@@ -100,7 +101,7 @@ export class ModuleScanner {
         dependencies: attachReplacementStatuses(rawDependencies, replacements),
         replacements,
         vulnerabilities,
-        errors: []
+        errors: [],
       };
       await this.cache.set(contentHash, snapshot);
 
@@ -109,7 +110,7 @@ export class ModuleScanner {
           outcome: "success",
           durationMs: Date.now() - startTime,
           cache: "miss",
-          dependencies: snapshot.dependencies.length
+          dependencies: snapshot.dependencies.length,
         });
       }
 
@@ -123,7 +124,7 @@ export class ModuleScanner {
       const kind = err instanceof ProcessExecutionError ? err.kind : classifyAnalysisError(err);
       const fields: Record<string, string | number | boolean> = {
         kind,
-        durationMs
+        durationMs,
       };
 
       if (err instanceof ProcessExecutionError) {
@@ -151,12 +152,14 @@ export class ModuleScanner {
     if (!vulnerability?.enabled) {
       return { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
     }
-    return vulnerability.coordinator.run(() => analyzeVulnerabilities({
-      moduleRoot,
-      govulncheckPath: vulnerability.govulncheckPath,
-      timeoutMs: vulnerability.timeoutMs,
-      signal,
-      ...(this.logger ? { logger: this.logger } : {})
-    }));
+    return vulnerability.coordinator.run(() =>
+      analyzeVulnerabilities({
+        moduleRoot,
+        govulncheckPath: vulnerability.govulncheckPath,
+        timeoutMs: vulnerability.timeoutMs,
+        signal,
+        ...(this.logger ? { logger: this.logger } : {}),
+      }),
+    );
   }
 }

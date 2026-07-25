@@ -86,9 +86,7 @@ export function classifyAnalysisError(error: unknown): AnalysisErrorCode {
 }
 
 function getErrorCode(error: unknown): string | undefined {
-  return error instanceof Error && "code" in error && typeof error.code === "string"
-    ? error.code
-    : undefined;
+  return error instanceof Error && "code" in error && typeof error.code === "string" ? error.code : undefined;
 }
 
 export function getSnapshotMetrics(snapshot: ModuleAnalysisSnapshot): SnapshotMetrics {
@@ -104,4 +102,3 @@ export function getSnapshotMetrics(snapshot: ModuleAnalysisSnapshot): SnapshotMe
   }
   return { updates, warnings };
 }
-

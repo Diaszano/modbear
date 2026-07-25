@@ -11,10 +11,7 @@ export class StatusBarManager implements vscode.Disposable {
 
   constructor(coordinator: ScanCoordinator) {
     this.coordinator = coordinator;
-    this.statusBarItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      100
-    );
+    this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.statusBarItem.command = "modBear.showStatusBarMenu";
     this.statusBarItem.show();
     this.update();
@@ -38,7 +35,10 @@ export class StatusBarManager implements vscode.Disposable {
   public update(): void {
     if (this.activeScansCount > 0) {
       this.statusBarItem.text = "$(sync~spin) ModBear: Scanning...";
-      const tooltip = new vscode.MarkdownString("ModBear is scanning Go modules for updates, deprecations, and retractions...", true);
+      const tooltip = new vscode.MarkdownString(
+        "ModBear is scanning Go modules for updates, deprecations, and retractions...",
+        true,
+      );
       tooltip.isTrusted = true;
       this.statusBarItem.tooltip = tooltip;
       return;
@@ -79,14 +79,18 @@ export class StatusBarManager implements vscode.Disposable {
       this.statusBarItem.tooltip = tooltip;
     } else if (hasStaleResults) {
       this.statusBarItem.text = "$(warning) ModBear: Results may be stale";
-      const tooltip = new vscode.MarkdownString("Dependency refresh failed; displaying the last successful results. Click to open logs.", true);
+      const tooltip = new vscode.MarkdownString(
+        "Dependency refresh failed; displaying the last successful results. Click to open logs.",
+        true,
+      );
       tooltip.isTrusted = true;
       this.statusBarItem.tooltip = tooltip;
     } else if (totalUpdates > 0 || totalWarnings > 0 || totalVulnerabilities > 0) {
       const parts: string[] = [];
       if (totalUpdates > 0) parts.push(`${totalUpdates} update${totalUpdates > 1 ? "s" : ""}`);
       if (totalWarnings > 0) parts.push(`${totalWarnings} warning${totalWarnings > 1 ? "s" : ""}`);
-      if (totalVulnerabilities > 0) parts.push(`${totalVulnerabilities} vulnerabilit${totalVulnerabilities > 1 ? "ies" : "y"}`);
+      if (totalVulnerabilities > 0)
+        parts.push(`${totalVulnerabilities} vulnerabilit${totalVulnerabilities > 1 ? "ies" : "y"}`);
 
       this.statusBarItem.text = `🐻 ModBear: ${parts.join(", ")}`;
       let tooltipText = `ModBear dependency analysis completed.\n- Updates: ${totalUpdates}\n- Warnings: ${totalWarnings}\n- Vulnerabilities: ${totalVulnerabilities}`;
@@ -99,14 +103,17 @@ export class StatusBarManager implements vscode.Disposable {
       this.statusBarItem.tooltip = tooltip;
     } else if (hasUnavailableVulnerabilities) {
       this.statusBarItem.text = "$(question) ModBear: Vulnerability analysis unavailable";
-      const tooltip = new vscode.MarkdownString("Vulnerability analysis is unavailable because govulncheck could not be resolved or executed.", true);
+      const tooltip = new vscode.MarkdownString(
+        "Vulnerability analysis is unavailable because govulncheck could not be resolved or executed.",
+        true,
+      );
       tooltip.isTrusted = true;
       this.statusBarItem.tooltip = tooltip;
     } else {
       this.statusBarItem.text = "🐻 ModBear: OK";
       const tooltip = new vscode.MarkdownString(
         "All Go modules analyzed. Dependencies are up to date.\nClick for actions.",
-        true
+        true,
       );
       tooltip.isTrusted = true;
       this.statusBarItem.tooltip = tooltip;

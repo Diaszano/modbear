@@ -13,39 +13,41 @@ suite("Terminal update command", () => {
     const originalCreateTerminal = vscode.window.createTerminal;
     const moduleRoot = await mkdtemp(path.join(os.tmpdir(), "modbear-terminal-command-"));
     await writeFile(path.join(moduleRoot, "go.mod"), "module example.com/test\n");
-    const sent: Array<{ text: string; shouldExecute: boolean | undefined }> = [];
+    const sent: { text: string; shouldExecute: boolean | undefined }[] = [];
     let receivedOptions: vscode.TerminalOptions | undefined;
     const fakeTerminal = {
       show: () => undefined,
       sendText: (text: string, shouldExecute?: boolean) => {
         sent.push({ text, shouldExecute });
-      }
+      },
     } as vscode.Terminal;
     Object.defineProperty(vscode.window, "createTerminal", {
       configurable: true,
       value: (options: vscode.TerminalOptions) => {
         receivedOptions = options;
         return fakeTerminal;
-      }
+      },
     });
 
     try {
       await vscode.commands.executeCommand("modBear.prepareUpdateInTerminal", {
         moduleRoot,
         modulePath: "github.com/gin-gonic/gin",
-        version: "v1.10.1"
+        version: "v1.10.1",
       });
 
       assert.equal(receivedOptions?.name, "ModBear");
       assert.equal(receivedOptions?.cwd, moduleRoot);
-      assert.deepEqual(sent, [{
-        text: "go get github.com/gin-gonic/gin@v1.10.1",
-        shouldExecute: false
-      }]);
+      assert.deepEqual(sent, [
+        {
+          text: "go get github.com/gin-gonic/gin@v1.10.1",
+          shouldExecute: false,
+        },
+      ]);
     } finally {
       Object.defineProperty(vscode.window, "createTerminal", {
         configurable: true,
-        value: originalCreateTerminal
+        value: originalCreateTerminal,
       });
       await rm(moduleRoot, { recursive: true, force: true });
     }
@@ -62,40 +64,40 @@ suite("Terminal update command", () => {
     let terminalCreated = false;
     Object.defineProperty(vscode.workspace, "isTrusted", {
       configurable: true,
-      get: () => false
+      get: () => false,
     });
     Object.defineProperty(vscode.window, "createTerminal", {
       configurable: true,
       value: () => {
         terminalCreated = true;
         throw new Error("terminal must not be created");
-      }
+      },
     });
     Object.defineProperty(vscode.window, "showWarningMessage", {
       configurable: true,
-      value: async () => undefined
+      value: async () => undefined,
     });
 
     try {
       await vscode.commands.executeCommand("modBear.prepareUpdateInTerminal", {
         moduleRoot: "/workspace/untrusted-terminal-test",
         modulePath: "example.com/mod",
-        version: "v1.2.3"
+        version: "v1.2.3",
       });
 
       assert.equal(terminalCreated, false);
     } finally {
       Object.defineProperty(vscode.workspace, "isTrusted", {
         configurable: true,
-        get: () => originalIsTrusted
+        get: () => originalIsTrusted,
       });
       Object.defineProperty(vscode.window, "createTerminal", {
         configurable: true,
-        value: originalCreateTerminal
+        value: originalCreateTerminal,
       });
       Object.defineProperty(vscode.window, "showWarningMessage", {
         configurable: true,
-        value: originalShowWarningMessage
+        value: originalShowWarningMessage,
       });
     }
   });
@@ -116,21 +118,21 @@ suite("Terminal update command", () => {
       value: () => {
         terminalCreated = true;
         throw new Error("terminal must not be created");
-      }
+      },
     });
     Object.defineProperty(vscode.window, "showErrorMessage", {
       configurable: true,
       value: async (message: string) => {
         errors.push(message);
         return undefined;
-      }
+      },
     });
 
     try {
       await vscode.commands.executeCommand("modBear.prepareUpdateInTerminal", {
         moduleRoot: unavailableRoot,
         modulePath: "example.com/mod",
-        version: "v1.2.3"
+        version: "v1.2.3",
       });
 
       assert.equal(terminalCreated, false);
@@ -139,11 +141,11 @@ suite("Terminal update command", () => {
     } finally {
       Object.defineProperty(vscode.window, "createTerminal", {
         configurable: true,
-        value: originalCreateTerminal
+        value: originalCreateTerminal,
       });
       Object.defineProperty(vscode.window, "showErrorMessage", {
         configurable: true,
-        value: originalShowErrorMessage
+        value: originalShowErrorMessage,
       });
       await rm(parent, { recursive: true, force: true });
     }
@@ -163,21 +165,21 @@ suite("Terminal update command", () => {
       value: () => {
         terminalCreated = true;
         throw new Error("terminal must not be created");
-      }
+      },
     });
     Object.defineProperty(vscode.window, "showErrorMessage", {
       configurable: true,
       value: async (message: string) => {
         errors.push(message);
         return undefined;
-      }
+      },
     });
 
     try {
       await vscode.commands.executeCommand("modBear.prepareUpdateInTerminal", {
         moduleRoot: path.resolve(os.tmpdir()),
         modulePath: "example.com/mod;whoami",
-        version: "v1.2.3"
+        version: "v1.2.3",
       });
 
       assert.equal(terminalCreated, false);
@@ -186,11 +188,11 @@ suite("Terminal update command", () => {
     } finally {
       Object.defineProperty(vscode.window, "createTerminal", {
         configurable: true,
-        value: originalCreateTerminal
+        value: originalCreateTerminal,
       });
       Object.defineProperty(vscode.window, "showErrorMessage", {
         configurable: true,
-        value: originalShowErrorMessage
+        value: originalShowErrorMessage,
       });
     }
   });

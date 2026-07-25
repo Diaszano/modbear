@@ -5,7 +5,7 @@ import type {
   GovulncheckPosition,
   GovulncheckProgress,
   GovulncheckStream,
-  GovulncheckTraceFrame
+  GovulncheckTraceFrame,
 } from "../domain/vulnerability";
 
 type JsonRecord = Readonly<Record<string, unknown>>;
@@ -31,7 +31,9 @@ class ImmutableMap<K, V> implements ReadonlyMap<K, V> {
   }
 
   forEach(callbackfn: (value: V, key: K, map: ReadonlyMap<K, V>) => void, thisArg?: unknown): void {
-    this.#entries.forEach((value, key) => callbackfn.call(thisArg, value, key, this));
+    this.#entries.forEach((value, key) => {
+      callbackfn.call(thisArg, value, key, this);
+    });
   }
 
   entries(): IterableIterator<[K, V]> {
@@ -62,8 +64,7 @@ export function parseGovulncheckStream(input: string): GovulncheckStream {
     if (line.trim() === "") continue;
     const lineNumber = index + 1;
     const message = parseLine(line, lineNumber);
-    const knownMessageNames = ["config", "progress", "osv", "finding"]
-      .filter((name) => message[name] !== undefined);
+    const knownMessageNames = ["config", "progress", "osv", "finding"].filter((name) => message[name] !== undefined);
 
     if (knownMessageNames.length > 1) {
       throw invalid(lineNumber, "contains more than one known message");
@@ -98,7 +99,7 @@ export function parseGovulncheckStream(input: string): GovulncheckStream {
     config,
     advisories: new ImmutableMap(advisories),
     findings: Object.freeze(findings),
-    progress: Object.freeze(progress)
+    progress: Object.freeze(progress),
   });
 }
 
@@ -127,7 +128,7 @@ function parseConfig(value: unknown, lineNumber: number): GovulncheckConfig {
     ...optionalStringProperty(config, "db_last_modified", "databaseLastModified", lineNumber, "config"),
     ...optionalStringProperty(config, "go_version", "goVersion", lineNumber, "config"),
     ...optionalStringProperty(config, "scan_level", "scanLevel", lineNumber, "config"),
-    ...optionalStringProperty(config, "scan_mode", "scanMode", lineNumber, "config")
+    ...optionalStringProperty(config, "scan_mode", "scanMode", lineNumber, "config"),
   });
 }
 
@@ -135,7 +136,7 @@ function parseProgress(value: unknown, lineNumber: number): GovulncheckProgress 
   const progress = record(value, lineNumber, "progress");
   return Object.freeze({
     ...optionalStringProperty(progress, "time", "timestamp", lineNumber, "progress"),
-    ...optionalStringProperty(progress, "message", "message", lineNumber, "progress")
+    ...optionalStringProperty(progress, "message", "message", lineNumber, "progress"),
   });
 }
 
@@ -148,20 +149,21 @@ function parseAdvisory(value: unknown, lineNumber: number): GovulncheckAdvisory 
     ...optionalStringProperty(advisory, "details", "details", lineNumber, "osv"),
     ...(aliases === undefined ? {} : { aliases: Object.freeze(aliases) }),
     ...optionalStringProperty(advisory, "published", "published", lineNumber, "osv"),
-    ...optionalStringProperty(advisory, "modified", "modified", lineNumber, "osv")
+    ...optionalStringProperty(advisory, "modified", "modified", lineNumber, "osv"),
   });
 }
 
 function parseFinding(value: unknown, lineNumber: number): GovulncheckFinding {
   const finding = record(value, lineNumber, "finding");
-  const trace = finding.trace === undefined
-    ? []
-    : array(finding.trace, lineNumber, "finding.trace").map((frame) => parseTraceFrame(frame, lineNumber));
+  const trace =
+    finding.trace === undefined
+      ? []
+      : array(finding.trace, lineNumber, "finding.trace").map((frame) => parseTraceFrame(frame, lineNumber));
   const fixedVersion = optionalString(finding, "fixed_version", lineNumber, "finding");
   return Object.freeze({
     osvId: requiredString(finding, "osv", lineNumber, "finding"),
     ...(fixedVersion === undefined ? {} : { fixedVersion }),
-    trace: Object.freeze(trace)
+    trace: Object.freeze(trace),
   });
 }
 
@@ -174,7 +176,7 @@ function parseTraceFrame(value: unknown, lineNumber: number): GovulncheckTraceFr
     ...optionalStringProperty(frame, "package", "package", lineNumber, "finding.trace frame"),
     ...optionalStringProperty(frame, "function", "function", lineNumber, "finding.trace frame"),
     ...optionalStringProperty(frame, "receiver", "receiver", lineNumber, "finding.trace frame"),
-    ...(position === undefined ? {} : { position })
+    ...(position === undefined ? {} : { position }),
   });
 }
 
@@ -184,7 +186,7 @@ function parsePosition(value: unknown, lineNumber: number): GovulncheckPosition 
     ...optionalStringProperty(position, "filename", "filename", lineNumber, "finding.trace position"),
     ...optionalNumberProperty(position, "offset", lineNumber, "finding.trace position"),
     ...optionalNumberProperty(position, "line", lineNumber, "finding.trace position"),
-    ...optionalNumberProperty(position, "column", lineNumber, "finding.trace position")
+    ...optionalNumberProperty(position, "column", lineNumber, "finding.trace position"),
   });
 }
 
@@ -225,7 +227,7 @@ function optionalStringProperty(
   inputName: string,
   outputName: string,
   lineNumber: number,
-  label: string
+  label: string,
 ): Readonly<Record<string, string>> {
   const parsed = optionalString(value, inputName, lineNumber, label);
   return parsed === undefined ? {} : { [outputName]: parsed };
@@ -235,7 +237,7 @@ function optionalNumberProperty(
   value: JsonRecord,
   name: string,
   lineNumber: number,
-  label: string
+  label: string,
 ): Readonly<Record<string, number>> {
   const parsed = value[name];
   if (parsed === undefined) return {};

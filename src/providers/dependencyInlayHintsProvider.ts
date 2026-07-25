@@ -1,12 +1,9 @@
 import * as vscode from "vscode";
-import { GoModDocumentCache } from "../parsers/goModDocumentCache";
+import type { GoModDocumentCache } from "../parsers/goModDocumentCache";
 import { buildInlayLabel } from "./inlayLabel";
 import type { ScanCoordinator } from "../orchestration/scanCoordinator";
 import type { ModuleContext } from "../domain/module";
-import {
-  PREPARE_UPDATE_COMMAND_ID,
-  type PrepareUpdateArgs
-} from "./terminalUpdateManager";
+import { PREPARE_UPDATE_COMMAND_ID, type PrepareUpdateArgs } from "./terminalUpdateManager";
 
 export class DependencyInlayHintsProvider implements vscode.InlayHintsProvider {
   private readonly changeEmitter = new vscode.EventEmitter<void>();
@@ -16,7 +13,7 @@ export class DependencyInlayHintsProvider implements vscode.InlayHintsProvider {
     private readonly coordinator: ScanCoordinator,
     private readonly resolveModule: (uri: vscode.Uri) => ModuleContext | undefined,
     private readonly requestScan: (module: ModuleContext) => void,
-    private readonly cache: GoModDocumentCache
+    private readonly cache: GoModDocumentCache,
   ) {}
 
   public refresh(): void {
@@ -53,14 +50,14 @@ export class DependencyInlayHintsProvider implements vscode.InlayHintsProvider {
         const actionArgs: PrepareUpdateArgs = {
           moduleRoot: module.moduleRoot,
           modulePath: requirement.modulePath,
-          version: status.availableVersion
+          version: status.availableVersion,
         };
         const terminalPart = new vscode.InlayHintLabelPart("$(terminal)");
         terminalPart.tooltip = "Prepare the suggested go get command in the terminal";
         terminalPart.command = {
           command: PREPARE_UPDATE_COMMAND_ID,
           title: "Prepare Update in Terminal",
-          arguments: [actionArgs]
+          arguments: [actionArgs],
         };
         const informationPart = new vscode.InlayHintLabelPart(` ${finalLabel}`);
         hintLabel = [terminalPart, informationPart];
@@ -68,11 +65,11 @@ export class DependencyInlayHintsProvider implements vscode.InlayHintsProvider {
       const hint = new vscode.InlayHint(
         new vscode.Position(requirement.versionRange.end.line, requirement.versionRange.end.character),
         hintLabel,
-        vscode.InlayHintKind.Type
+        vscode.InlayHintKind.Type,
       );
       hint.paddingLeft = true;
       hint.tooltip = new vscode.MarkdownString(
-        `**${requirement.modulePath}**\n\nInstalled: \`${requirement.version}\`\n\n${finalLabel}`
+        `**${requirement.modulePath}**\n\nInstalled: \`${requirement.version}\`\n\n${finalLabel}`,
       );
       return [hint];
     });

@@ -18,14 +18,14 @@ test("ModuleScanner logs targeted go list arguments before a process failure", a
     const mockLogger = {
       command(executable: string, args: readonly string[], cwd: string) {
         loggedCommands.push({ executable, args, cwd });
-      }
+      },
     } as unknown as Logger;
 
     const scanner = new ModuleScanner(cache, "missing-go-for-logging-test", 5000, 60000, mockLogger);
     const moduleContext = {
       id: "test-module",
       moduleRoot: tmpDir,
-      goModPath
+      goModPath,
     };
 
     const controller = new AbortController();

@@ -12,9 +12,7 @@ export function parseGoWorkUses(text: string): readonly string[] {
       inBlock = false;
       continue;
     }
-    const match = inBlock
-      ? /^("[^"]+"|\S+)$/.exec(trimmed)
-      : /^use\s+("[^"]+"|\S+)$/.exec(trimmed);
+    const match = inBlock ? /^("[^"]+"|\S+)$/.exec(trimmed) : /^use\s+("[^"]+"|\S+)$/.exec(trimmed);
     if (match?.[1]) uses.push(match[1].replace(/^"|"$/g, ""));
   }
   return uses;

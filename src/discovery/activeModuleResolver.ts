@@ -3,7 +3,7 @@ import type { ModuleContext } from "../domain/module";
 
 export function resolveActiveModule(
   documentPath: string,
-  modules: readonly ModuleContext[]
+  modules: readonly ModuleContext[],
 ): ModuleContext | undefined {
   const normalized = path.resolve(documentPath);
   return modules
@@ -11,7 +11,7 @@ export function resolveActiveModule(
       (module) =>
         normalized === module.goModPath ||
         normalized === module.moduleRoot ||
-        normalized.startsWith(`${module.moduleRoot}${path.sep}`)
+        normalized.startsWith(`${module.moduleRoot}${path.sep}`),
     )
     .sort((a, b) => b.moduleRoot.length - a.moduleRoot.length)[0];
 }

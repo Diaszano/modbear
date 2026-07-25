@@ -40,7 +40,7 @@ export class AnalysisCache {
         const updatedEnvelope: CacheEnvelope = {
           schema: 2,
           snapshot: parsed.snapshot,
-          lastAccessedAt: Date.now()
+          lastAccessedAt: Date.now(),
         };
         await this.writeAtomic(key, updatedEnvelope);
         return parsed.snapshot;
@@ -60,7 +60,7 @@ export class AnalysisCache {
     const envelope: CacheEnvelope = {
       schema: 2,
       snapshot,
-      lastAccessedAt: Date.now()
+      lastAccessedAt: Date.now(),
     };
     await this.writeAtomic(key, envelope);
     await this.prune();
@@ -85,7 +85,7 @@ export class AnalysisCache {
   private async prune(): Promise<void> {
     try {
       const files = await readdir(this.root);
-      const cacheFiles = files.filter(f => /^[a-f0-9]{64}\.json$/.test(f));
+      const cacheFiles = files.filter((f) => /^[a-f0-9]{64}\.json$/.test(f));
       const entries: { file: string; lastAccessedAt: number }[] = [];
 
       for (const filename of cacheFiles) {

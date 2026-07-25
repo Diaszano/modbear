@@ -17,7 +17,7 @@ const mockSnapshot: ModuleAnalysisSnapshot = {
   dependencies: [],
   replacements: [],
   vulnerabilities: notRunVulnerabilities,
-  errors: []
+  errors: [],
 };
 
 const makeKey = (i: number): string => String(i).padStart(64, "0");
@@ -57,7 +57,7 @@ test("AnalysisCache limits cache growth to 100 snapshots ordered by lastAccessed
 
     // Verify exactly 100 files remain on disk matching the regex /^[a-f0-9]{64}\.json$/
     const files = await readdir(tmpDir);
-    const jsonFiles = files.filter(f => /^[a-f0-9]{64}\.json$/.test(f));
+    const jsonFiles = files.filter((f) => /^[a-f0-9]{64}\.json$/.test(f));
     assert.equal(jsonFiles.length, 100);
 
     // The first one (key for i=0) had the lowest lastAccessedAt, so it should have been pruned.

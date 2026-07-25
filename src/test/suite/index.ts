@@ -9,6 +9,12 @@ export async function run(): Promise<void> {
     if (path.resolve(file) !== path.resolve(__filename)) mocha.addFile(file);
   }
   await new Promise<void>((resolve, reject) => {
-    mocha.run((failures) => failures > 0 ? reject(new Error(`${failures} extension tests failed`)) : resolve());
+    mocha.run((failures) => {
+      if (failures > 0) {
+        reject(new Error(`${failures} extension tests failed`));
+      } else {
+        resolve();
+      }
+    });
   });
 }

@@ -28,7 +28,10 @@ export function parseGoListJson(input: string): readonly GoListModule[] {
       else if (char === '"') inString = false;
       continue;
     }
-    if (char === '"') { inString = true; continue; }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
     if (char === "{") {
       if (depth === 0) start = index;
       depth += 1;

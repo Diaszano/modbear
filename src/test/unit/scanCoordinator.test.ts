@@ -15,7 +15,7 @@ const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisor
 const dummyModule: ModuleContext = {
   id: "mod-1",
   moduleRoot: "/path/to/mod",
-  goModPath: "/path/to/mod/go.mod"
+  goModPath: "/path/to/mod/go.mod",
 };
 
 const mockSnapshot: ModuleAnalysisSnapshot = {
@@ -27,7 +27,7 @@ const mockSnapshot: ModuleAnalysisSnapshot = {
   dependencies: [],
   replacements: [],
   vulnerabilities: notRunVulnerabilities,
-  errors: []
+  errors: [],
 };
 
 test("ScanCoordinator stores and retrieves snapshots by moduleId", async () => {
@@ -37,7 +37,7 @@ test("ScanCoordinator stores and retrieves snapshots by moduleId", async () => {
   const snapshot = await coordinator.scanModule({
     module: dummyModule,
     contentHash: "hash-123",
-    run: async () => mockSnapshot
+    run: async () => mockSnapshot,
   });
 
   assert.deepEqual(snapshot, mockSnapshot);
@@ -54,7 +54,7 @@ test("ScanCoordinator emits snapshot event when scan finishes", async () => {
   await coordinator.scanModule({
     module: dummyModule,
     contentHash: "hash-123",
-    run: async () => mockSnapshot
+    run: async () => mockSnapshot,
   });
 
   assert.equal(received.length, 1);
@@ -64,7 +64,7 @@ test("ScanCoordinator emits snapshot event when scan finishes", async () => {
   await coordinator.scanModule({
     module: dummyModule,
     contentHash: "hash-456",
-    run: async () => mockSnapshot
+    run: async () => mockSnapshot,
   });
   assert.equal(received.length, 1);
 });
@@ -74,7 +74,7 @@ test("ScanCoordinator cancels superseded scans", async () => {
   const mockLogger = {
     event(level: string, name: string, fields: any) {
       loggedEvents.push({ level, name, fields });
-    }
+    },
   } as any;
   const coordinator = new ScanCoordinator(() => 2, mockLogger);
   let firstAborted = false;
@@ -88,14 +88,14 @@ test("ScanCoordinator cancels superseded scans", async () => {
           firstAborted = true;
           reject(new Error("Scan cancelled"));
         });
-      })
+      }),
   });
 
   // Start second scan for same module ID while first is pending
   const secondScan = coordinator.scanModule({
     module: dummyModule,
     contentHash: "hash-2",
-    run: async () => mockSnapshot
+    run: async () => mockSnapshot,
   });
 
   await assert.rejects(firstScan, { message: "Scan cancelled" });
@@ -103,7 +103,7 @@ test("ScanCoordinator cancels superseded scans", async () => {
 
   assert.ok(firstAborted);
   assert.deepEqual(result, mockSnapshot);
-  assert.ok(loggedEvents.some(e => e.name === "scan.cancelled" && e.level === "debug"));
+  assert.ok(loggedEvents.some((e) => e.name === "scan.cancelled" && e.level === "debug"));
 });
 
 test("ScanCoordinator dispose aborts active scans", async () => {
@@ -111,7 +111,7 @@ test("ScanCoordinator dispose aborts active scans", async () => {
   const mockLogger = {
     event(level: string, name: string, fields: any) {
       loggedEvents.push({ level, name, fields });
-    }
+    },
   } as any;
   const coordinator = new ScanCoordinator(() => 2, mockLogger);
   let aborted = false;
@@ -125,13 +125,13 @@ test("ScanCoordinator dispose aborts active scans", async () => {
           aborted = true;
           reject(new Error("Scan cancelled"));
         });
-      })
+      }),
   });
 
   coordinator.dispose();
   await assert.rejects(scan, { message: "Scan cancelled" });
   assert.ok(aborted);
-  assert.ok(loggedEvents.some(e => e.name === "scan.cancelled" && e.level === "debug"));
+  assert.ok(loggedEvents.some((e) => e.name === "scan.cancelled" && e.level === "debug"));
 });
 
 test("ScanCoordinator stores and emits fallback failed snapshot on non-abort error", async () => {
@@ -144,7 +144,7 @@ test("ScanCoordinator stores and emits fallback failed snapshot on non-abort err
     contentHash: "hash-err",
     run: async () => {
       throw new Error("go list command failed");
-    }
+    },
   });
 
   await assert.rejects(scanPromise, { message: "go list command failed" });
@@ -163,11 +163,15 @@ test("ScanCoordinator stores and emits fallback failed snapshot on non-abort err
 test("retains the last successful snapshot as stale when refresh fails", async () => {
   const coordinator = new ScanCoordinator();
   await coordinator.scanModule({ module: dummyModule, contentHash: "ok", run: async () => mockSnapshot });
-  await assert.rejects(coordinator.scanModule({
-    module: dummyModule,
-    contentHash: "new",
-    run: async () => { throw new Error("network unavailable"); }
-  }));
+  await assert.rejects(
+    coordinator.scanModule({
+      module: dummyModule,
+      contentHash: "new",
+      run: async () => {
+        throw new Error("network unavailable");
+      },
+    }),
+  );
   const snapshot = coordinator.getSnapshot(dummyModule.id)!;
   assert.equal(snapshot.stale, true);
   assert.equal(snapshot.updateState, "partial");
@@ -178,16 +182,24 @@ test("retains the last successful snapshot as stale when refresh fails", async (
 test("keeps an initial failed snapshot failed when the next scan also fails", async () => {
   const coordinator = new ScanCoordinator();
 
-  await assert.rejects(coordinator.scanModule({
-    module: dummyModule,
-    contentHash: "first-failure",
-    run: async () => { throw new Error("first failure"); }
-  }));
-  await assert.rejects(coordinator.scanModule({
-    module: dummyModule,
-    contentHash: "second-failure",
-    run: async () => { throw new Error("second failure"); }
-  }));
+  await assert.rejects(
+    coordinator.scanModule({
+      module: dummyModule,
+      contentHash: "first-failure",
+      run: async () => {
+        throw new Error("first failure");
+      },
+    }),
+  );
+  await assert.rejects(
+    coordinator.scanModule({
+      module: dummyModule,
+      contentHash: "second-failure",
+      run: async () => {
+        throw new Error("second failure");
+      },
+    }),
+  );
 
   const snapshot = coordinator.getSnapshot(dummyModule.id)!;
   assert.equal(snapshot.stale, false);
@@ -226,12 +238,14 @@ test("ScanCoordinator and ModuleScanner emit structured scan lifecycle events", 
 
     const logger = {
       event(level: string, name: string, fields: Record<string, string | number | boolean>) {
-        const body = Object.entries(fields).map(([k,v]) => `${k}=${v}`).join(" ");
+        const body = Object.entries(fields)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(" ");
         loggedEvents.push({ level, name, fields: `${name}${body ? ` ${body}` : ""}` });
       },
-      command(executable: string, args: readonly string[], cwd: string) {
+      command(_executable: string, _args: readonly string[], _cwd: string) {
         // no-op
-      }
+      },
     } as any;
 
     const scanner = new ModuleScanner(cache, "invalid-go", 5000, 60000, logger);
@@ -240,20 +254,24 @@ test("ScanCoordinator and ModuleScanner emit structured scan lifecycle events", 
     const moduleContext = {
       id: "test-module",
       moduleRoot: tmpDir,
-      goModPath
+      goModPath,
     };
 
     // First scan: cache miss, fails because of invalid-go
     const request = {
       module: moduleContext,
       contentHash: "hash-event-miss",
-      run: (signal: AbortSignal) => scanner.scan(moduleContext, signal)
+      run: (signal: AbortSignal) => scanner.scan(moduleContext, signal),
     };
 
     await assert.rejects(coordinator.scanModule(request));
 
-    assert.ok(loggedEvents.some(e => e.name === "scan.started" && e.fields.includes("cache=miss") && e.level === "info"));
-    assert.ok(loggedEvents.some(e => e.name === "scan.failed" && e.fields.includes("kind=spawn") && e.level === "error"));
+    assert.ok(
+      loggedEvents.some((e) => e.name === "scan.started" && e.fields.includes("cache=miss") && e.level === "info"),
+    );
+    assert.ok(
+      loggedEvents.some((e) => e.name === "scan.failed" && e.fields.includes("kind=spawn") && e.level === "error"),
+    );
 
     // Now populate cache using the contentHash to get a cache hit
     const contentHash = createCacheKey({
@@ -263,7 +281,7 @@ test("ScanCoordinator and ModuleScanner emit structured scan lifecycle events", 
       goWork: "",
       goExecutable: "invalid-go",
       timeoutMs: 5000,
-      vulnerability: undefined
+      vulnerability: undefined,
     });
 
     const mockSnapshot: ModuleAnalysisSnapshot = {
@@ -275,7 +293,7 @@ test("ScanCoordinator and ModuleScanner emit structured scan lifecycle events", 
       dependencies: [],
       replacements: [],
       vulnerabilities: { state: "not-run", findings: [], advisories: {}, errors: [] },
-      errors: []
+      errors: [],
     };
 
     await cache.set(contentHash, mockSnapshot);
@@ -285,14 +303,24 @@ test("ScanCoordinator and ModuleScanner emit structured scan lifecycle events", 
     const requestHit = {
       module: moduleContext,
       contentHash,
-      run: (signal: AbortSignal) => scanner.scan(moduleContext, signal)
+      run: (signal: AbortSignal) => scanner.scan(moduleContext, signal),
     };
 
     const result = await coordinator.scanModule(requestHit);
     assert.deepEqual(result, mockSnapshot);
 
-    assert.ok(loggedEvents.some(e => e.name === "scan.started" && e.fields.includes("cache=hit") && e.level === "info"));
-    assert.ok(loggedEvents.some(e => e.name === "scan.finished" && e.fields.includes("outcome=success") && e.fields.includes("cache=hit") && e.level === "info"));
+    assert.ok(
+      loggedEvents.some((e) => e.name === "scan.started" && e.fields.includes("cache=hit") && e.level === "info"),
+    );
+    assert.ok(
+      loggedEvents.some(
+        (e) =>
+          e.name === "scan.finished" &&
+          e.fields.includes("outcome=success") &&
+          e.fields.includes("cache=hit") &&
+          e.level === "info",
+      ),
+    );
   } finally {
     await rm(tmpDir, { recursive: true, force: true });
   }

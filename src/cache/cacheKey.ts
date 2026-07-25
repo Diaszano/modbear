@@ -14,8 +14,8 @@ export function createCacheKey(input: Record<string, unknown>): string {
       GOPRIVATE: process.env.GOPRIVATE ?? "",
       GOSUMDB: process.env.GOSUMDB ?? "",
       GONOSUMDB: process.env.GONOSUMDB ?? "",
-      goVersion
-    }
+      goVersion,
+    },
   };
 
   return createHash("sha256").update(stableStringify(enrichedInput)).digest("hex");

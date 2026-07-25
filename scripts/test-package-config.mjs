@@ -1,37 +1,37 @@
-import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtemp, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-const directory = await mkdtemp(join(tmpdir(), 'modbear-vsix-'));
-const archive = join(directory, 'modbear.vsix');
+const directory = await mkdtemp(join(tmpdir(), "modbear-vsix-"));
+const archive = join(directory, "modbear.vsix");
 
 try {
-  const packageResult = spawnSync('npx', ['vsce', 'package', '--no-dependencies', '--out', archive], {
-    encoding: 'utf8',
+  const packageResult = spawnSync("npx", ["vsce", "package", "--no-dependencies", "--out", archive], {
+    encoding: "utf8",
   });
   assert.equal(packageResult.status, 0, packageResult.stderr);
 
-  const unzipResult = spawnSync('unzip', ['-Z1', archive], { encoding: 'utf8' });
+  const unzipResult = spawnSync("unzip", ["-Z1", archive], { encoding: "utf8" });
   assert.equal(unzipResult.status, 0, unzipResult.stderr);
   const paths = unzipResult.stdout
-    .split('\n')
+    .split("\n")
     .filter(Boolean)
     .map((path) => path.toLowerCase());
-  const payloadPrefix = 'extension/';
+  const payloadPrefix = "extension/";
   const payloadPaths = paths.filter((path) => path.startsWith(payloadPrefix));
   const rootPaths = paths.filter((path) => !path.startsWith(payloadPrefix));
-  const rootMetadata = new Set(['[content_types].xml', 'extension.vsixmanifest', '_rels/.rels']);
+  const rootMetadata = new Set(["[content_types].xml", "extension.vsixmanifest", "_rels/.rels"]);
 
-  assert.ok(payloadPaths.length > 0, 'VSIX must contain an extension payload');
-  assert.ok(paths.includes('extension/package.json'), 'VSIX payload must remain under extension/');
+  assert.ok(payloadPaths.length > 0, "VSIX must contain an extension payload");
+  assert.ok(paths.includes("extension/package.json"), "VSIX payload must remain under extension/");
   for (const path of rootPaths) {
     assert.ok(rootMetadata.has(path), `Unexpected VSIX root metadata path: ${path}`);
   }
 
-  const required = ['package.json', 'readme.md', 'changelog.md', 'license.txt'];
-  const requiredPrefixes = ['dist/', 'resources/'];
+  const required = ["package.json", "readme.md", "changelog.md", "license.txt"];
+  const requiredPrefixes = ["dist/", "resources/"];
   for (const path of required) {
     assert.ok(payloadPaths.includes(`${payloadPrefix}${path}`), `Required package path missing: ${path}`);
   }
@@ -43,19 +43,19 @@ try {
   }
 
   const forbidden = [
-    'src/',
-    '.github/',
-    '.codex/',
-    '.husky/',
-    'docs/',
-    'scripts/',
-    'node_modules/',
-    'package-lock.json',
-    'tsconfig.json',
-    'commitlint.config.js',
-    '.releaserc.json',
-    '.nvmrc',
-    '.gitignore',
+    "src/",
+    ".github/",
+    ".codex/",
+    ".husky/",
+    "docs/",
+    "scripts/",
+    "node_modules/",
+    "package-lock.json",
+    "tsconfig.json",
+    "commitlint.config.js",
+    ".releaserc.json",
+    ".nvmrc",
+    ".gitignore",
   ];
   for (const path of payloadPaths) {
     const payloadPath = path.slice(payloadPrefix.length);
@@ -66,9 +66,9 @@ try {
     assert.ok(!/^esbuild\..+/.test(payloadPath), `Forbidden package path: ${payloadPath}`);
   }
 
-  const allowed = new Set(['package.json', 'package.nls.json', 'readme.md', 'changelog.md', 'license.txt']);
-  const allowedPrefixes = ['dist/', 'resources/'];
-  assert.ok((await stat(archive)).size < 2 * 1024 * 1024, 'VSIX exceeds 2 MiB budget');
+  const allowed = new Set(["package.json", "package.nls.json", "readme.md", "changelog.md", "license.txt"]);
+  const allowedPrefixes = ["dist/", "resources/"];
+  assert.ok((await stat(archive)).size < 2 * 1024 * 1024, "VSIX exceeds 2 MiB budget");
   for (const path of payloadPaths) {
     const payloadPath = path.slice(payloadPrefix.length);
     assert.ok(
@@ -80,4 +80,4 @@ try {
   await rm(directory, { recursive: true, force: true });
 }
 
-console.log('VSIX package contract test passed cleanly.');
+console.log("VSIX package contract test passed cleanly.");

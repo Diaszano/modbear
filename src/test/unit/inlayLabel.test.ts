@@ -11,11 +11,11 @@ test("prioritizes retraction over update", () => {
         availableVersion: "v1.1.0",
         updateKind: "minor",
         retractionRationales: ["bad"],
-        errors: []
+        errors: [],
       },
-      true
+      true,
     ),
-    "⚠ retracted · → v1.1.0"
+    "⚠ retracted · → v1.1.0",
   );
 });
 
@@ -26,11 +26,11 @@ test("shows retraction without available update", () => {
         modulePath: "a",
         installedVersion: "v1.0.0",
         retractionRationales: ["bad"],
-        errors: []
+        errors: [],
       },
-      true
+      true,
     ),
-    "⚠ retracted"
+    "⚠ retracted",
   );
 });
 
@@ -42,11 +42,11 @@ test("shows deprecation status when deprecated", () => {
         installedVersion: "v1.0.0",
         deprecatedMessage: "use b instead",
         retractionRationales: [],
-        errors: []
+        errors: [],
       },
-      true
+      true,
     ),
-    "⚠ deprecated"
+    "⚠ deprecated",
   );
 });
 
@@ -59,11 +59,11 @@ test("shows compatible update", () => {
         availableVersion: "v1.0.1",
         updateKind: "patch",
         retractionRationales: [],
-        errors: []
+        errors: [],
       },
-      true
+      true,
     ),
-    "→ v1.0.1 · patch"
+    "→ v1.0.1 · patch",
   );
 });
 
@@ -76,11 +76,11 @@ test("shows compatible update without updateKind when showKind is false", () => 
         availableVersion: "v1.0.1",
         updateKind: "patch",
         retractionRationales: [],
-        errors: []
+        errors: [],
       },
-      false
+      false,
     ),
-    "→ v1.0.1"
+    "→ v1.0.1",
   );
 });
 
@@ -94,13 +94,13 @@ test("shows local replacement when applicable", () => {
         replacement: {
           sourcePath: "a",
           targetPath: "../local/a",
-          local: true
+          local: true,
         },
-        errors: []
+        errors: [],
       },
-      true
+      true,
     ),
-    "↪ local replacement"
+    "↪ local replacement",
   );
 });
 
@@ -111,10 +111,10 @@ test("returns undefined when no hint applies", () => {
         modulePath: "a",
         installedVersion: "v1.0.0",
         retractionRationales: [],
-        errors: []
+        errors: [],
       },
-      true
+      true,
     ),
-    undefined
+    undefined,
   );
 });

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2026-07-21
 
 ### Added
+
 - Read-only Go module dependency scanning via `go list -u -m -json all`.
 - Inline inlay hints in `go.mod` files showing available version updates (patch, minor, major).
 - Deprecation and retraction detection with VS Code diagnostics.

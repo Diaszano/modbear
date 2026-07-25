@@ -19,7 +19,7 @@ test("getSnapshotMetrics counts updates and warnings accurately", () => {
         installedVersion: "v1.0.0",
         availableVersion: "v1.1.0",
         retractionRationales: [],
-        errors: []
+        errors: [],
       },
       {
         modulePath: "example.com/dep2",
@@ -27,18 +27,18 @@ test("getSnapshotMetrics counts updates and warnings accurately", () => {
         availableVersion: "v1.2.0",
         deprecatedMessage: "deprecated",
         retractionRationales: ["retracted"],
-        errors: []
+        errors: [],
       },
       {
         modulePath: "example.com/dep3",
         installedVersion: "v1.0.0",
         retractionRationales: [],
-        errors: [{ code: "unknown", message: "err" }]
-      }
+        errors: [{ code: "unknown", message: "err" }],
+      },
     ],
     replacements: [],
     vulnerabilities: notRunVulnerabilities,
-    errors: []
+    errors: [],
   };
 
   const metrics = getSnapshotMetrics(snapshot);

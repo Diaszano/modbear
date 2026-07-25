@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import test from "node:test";
+import type { Logger } from "../../logging/logger";
 
 type ModuleLoader = (request: string, parent: NodeModule | undefined, isMain: boolean) => unknown;
-type LoggerConstructor = typeof import("../../logging/logger").Logger;
+type LoggerConstructor = typeof Logger;
 
 async function loadLogger(): Promise<LoggerConstructor> {
   const nodeRequire = createRequire(__filename);
@@ -11,7 +12,13 @@ async function loadLogger(): Promise<LoggerConstructor> {
   const originalLoad = moduleLoader._load;
   moduleLoader._load = function (request, parent, isMain) {
     return request === "vscode"
-      ? { window: { createOutputChannel: () => { throw new Error("Unexpected output channel creation"); } } }
+      ? {
+          window: {
+            createOutputChannel: () => {
+              throw new Error("Unexpected output channel creation");
+            },
+          },
+        }
       : originalLoad.call(this, request, parent, isMain);
   };
 
@@ -27,7 +34,7 @@ function createChannelDouble() {
     debug: [] as string[],
     info: [] as string[],
     warn: [] as string[],
-    error: [] as string[]
+    error: [] as string[],
   };
 
   return {
@@ -38,15 +45,18 @@ function createChannelDouble() {
       warn: (message: string) => messages.warn.push(message),
       error: (message: string) => messages.error.push(message),
       show: () => undefined,
-      dispose: () => undefined
-    }
+      dispose: () => undefined,
+    },
   };
 }
 
 test("does not emit debug events when configured at info level", async () => {
   const output = createChannelDouble();
   const Logger = await loadLogger();
-  const logger = new Logger(() => "info", () => output.channel);
+  const logger = new Logger(
+    () => "info",
+    () => output.channel,
+  );
 
   logger.event("debug", "scan.command", { command: "go list" });
 
@@ -59,13 +69,20 @@ test("emits exactly the configured logger threshold matrix", async () => {
 
   for (const threshold of levels) {
     const output = createChannelDouble();
-    const logger = new Logger(() => threshold, () => output.channel);
+    const logger = new Logger(
+      () => threshold,
+      () => output.channel,
+    );
 
     for (const level of levels) logger.event(level, `${threshold}.${level}`, {});
 
     for (const level of levels) {
       const expected = levels.indexOf(level) <= levels.indexOf(threshold) ? [`${threshold}.${level}`] : [];
-      assert.deepEqual(output.messages[level], expected, `${threshold} should ${expected.length ? "emit" : "suppress"} ${level}`);
+      assert.deepEqual(
+        output.messages[level],
+        expected,
+        `${threshold} should ${expected.length ? "emit" : "suppress"} ${level}`,
+      );
     }
   }
 });
@@ -73,39 +90,45 @@ test("emits exactly the configured logger threshold matrix", async () => {
 test("emits error events with redacted fields", async () => {
   const output = createChannelDouble();
   const Logger = await loadLogger();
-  const logger = new Logger(() => "info", () => output.channel);
+  const logger = new Logger(
+    () => "info",
+    () => output.channel,
+  );
 
   logger.event("error", "scan.failed", {
-    detail: "go list cwd=/home/alice/private https://user:password@example.com/private/module token=abc123"
+    detail: "go list cwd=/home/alice/private https://user:password@example.com/private/module token=abc123",
   });
 
   assert.deepEqual(output.messages.error, [
-    "scan.failed detail=go list cwd=[redacted-path] https://***@example.com/private/module token=***"
+    "scan.failed detail=go list cwd=[redacted-path] https://***@example.com/private/module token=***",
   ]);
 });
 
 test("emits scan lifecycle events correctly formatted and redacted", async () => {
   const output = createChannelDouble();
   const Logger = await loadLogger();
-  const logger = new Logger(() => "info", () => output.channel);
+  const logger = new Logger(
+    () => "info",
+    () => output.channel,
+  );
 
   logger.event("info", "scan.started", {
     kind: "updates",
-    cache: "miss"
+    cache: "miss",
   });
 
   logger.event("info", "scan.finished", {
     outcome: "success",
     durationMs: 150,
     cache: "miss",
-    dependencies: 12
+    dependencies: 12,
   });
 
   logger.event("info", "scan.failed", {
     kind: "exit-nonzero",
     durationMs: 250,
     exitCode: 7,
-    stderr: "error reading directory"
+    stderr: "error reading directory",
   });
 
   const messages = output.messages.info;

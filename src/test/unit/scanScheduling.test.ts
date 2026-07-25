@@ -12,8 +12,8 @@ async function loadScanScheduler(): Promise<any> {
     if (request === "vscode") {
       return {
         workspace: {
-          isTrusted: true
-        }
+          isTrusted: true,
+        },
       };
     }
     return originalLoad.call(this, request, parent, isMain);

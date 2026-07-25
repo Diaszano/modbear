@@ -3,7 +3,7 @@
 > **Status:** Draft (Pending User Approval)  
 > **Date:** 2026-07-23  
 > **Product name:** ModBear  
-> **Feature:** VS Code Status Bar Integration  
+> **Feature:** VS Code Status Bar Integration
 
 ## 1. Executive Summary
 
@@ -34,11 +34,11 @@ export class StatusBarManager implements vscode.Disposable {
     this.coordinator = coordinator;
     this.statusBarItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
-      100 // Medium-priority right alignment
+      100, // Medium-priority right alignment
     );
     this.statusBarItem.command = "modBear.showStatusBarMenu";
     this.statusBarItem.show();
-    
+
     this.update();
   }
 
@@ -93,7 +93,7 @@ export class StatusBarManager implements vscode.Disposable {
       const parts: string[] = [];
       if (totalUpdates > 0) parts.push(`${totalUpdates} update${totalUpdates > 1 ? "s" : ""}`);
       if (totalWarnings > 0) parts.push(`${totalWarnings} warning${totalWarnings > 1 ? "s" : ""}`);
-      
+
       this.statusBarItem.text = `🐻 ModBear: ${parts.join(", ")}`;
       this.statusBarItem.tooltip = `ModBear dependency analysis completed.\n- Updates: ${totalUpdates}\n- Warnings: ${totalWarnings}\n\nClick for actions.`;
     } else {
@@ -116,18 +116,18 @@ export class StatusBarManager implements vscode.Disposable {
 
 When the user clicks the status bar item, it executes `modBear.showStatusBarMenu`. This command prompts a VS Code Quick Pick menu with the following choices:
 
-* **Header/Title:** `ModBear: Go Dependency Insights`
-* **Options:**
+- **Header/Title:** `ModBear: Go Dependency Insights`
+- **Options:**
   1. `$(sync) Scan Workspace`
-     * Description: `Force scan all Go modules in the workspace`
-     * Action: Invokes `modBear.scanWorkspace`
+     - Description: `Force scan all Go modules in the workspace`
+     - Action: Invokes `modBear.scanWorkspace`
   2. `$(output) Show Output Logs`
-     * Description: `Open ModBear's output channel to view logs`
-     * Action: Invokes `modBear.showOutput`
-  3. *(Dynamic Section)* List of modules in the workspace:
-     * Label: `$(file-code) go.mod (module-path)`
-     * Detail: Status details of each module (e.g., `OK` or `3 updates, 1 warning` or `Scan pending...`).
-     * Action: Opens the corresponding `go.mod` file in the active editor.
+     - Description: `Open ModBear's output channel to view logs`
+     - Action: Invokes `modBear.showOutput`
+  3. _(Dynamic Section)_ List of modules in the workspace:
+     - Label: `$(file-code) go.mod (module-path)`
+     - Detail: Status details of each module (e.g., `OK` or `3 updates, 1 warning` or `Scan pending...`).
+     - Action: Opens the corresponding `go.mod` file in the active editor.
 
 ---
 
@@ -150,13 +150,15 @@ When the user clicks the status bar item, it executes `modBear.showStatusBarMenu
 ## 5. Verification & Testing Plan
 
 ### 5.1 Unit Tests
-* Verify status bar item instantiation and alignment.
-* Verify text and tooltip updates for various states:
-  * Scanning (active scans > 0).
-  * Error state (hasErrors = true).
-  * Outdated modules.
-  * Clean state (no updates, no warnings).
+
+- Verify status bar item instantiation and alignment.
+- Verify text and tooltip updates for various states:
+  - Scanning (active scans > 0).
+  - Error state (hasErrors = true).
+  - Outdated modules.
+  - Clean state (no updates, no warnings).
 
 ### 5.2 Integration Tests
-* Verify command registration for `modBear.showStatusBarMenu`.
-* Verify clicking status bar launches `vscode.window.showQuickPick`.
+
+- Verify command registration for `modBear.showStatusBarMenu`.
+- Verify clicking status bar launches `vscode.window.showQuickPick`.

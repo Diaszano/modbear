@@ -22,24 +22,26 @@
 
 ## File Structure
 
-| Path | Responsibility |
-| --- | --- |
-| `.nvmrc`, `package.json`, `package-lock.json` | Node 24 contract, tooling dependencies, and local commands. |
-| `tsconfig.tools.json`, `esbuild.ts`, `esbuild.config.json` | Typecheck and build TypeScript-based tooling separately from extension sources. |
-| `eslint.config.ts`, `.prettierrc.json`, `.prettierignore`, `.husky/commit-msg` | Lint, format, and commit-message standards. |
-| `.gitignore`, `.vscodeignore` | Separate local-worktree hygiene from the explicit published-VSIX allowlist. |
-| `scripts/test-release-config.mjs`, `scripts/test-package-config.mjs` | Executable assertions for delivery and VSIX policy. |
-| `.github/workflows/*.yml` | PR, quality, and reusable release automation. |
-| `.github/{CODEOWNERS,dependabot.yml,pull_request_template.md,ISSUE_TEMPLATE/*}` | Review ownership, dependency updates, and contributor intake. |
+| Path                                                                            | Responsibility                                                                  |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `.nvmrc`, `package.json`, `package-lock.json`                                   | Node 24 contract, tooling dependencies, and local commands.                     |
+| `tsconfig.tools.json`, `esbuild.ts`, `esbuild.config.json`                      | Typecheck and build TypeScript-based tooling separately from extension sources. |
+| `eslint.config.ts`, `.prettierrc.json`, `.prettierignore`, `.husky/commit-msg`  | Lint, format, and commit-message standards.                                     |
+| `.gitignore`, `.vscodeignore`                                                   | Separate local-worktree hygiene from the explicit published-VSIX allowlist.     |
+| `scripts/test-release-config.mjs`, `scripts/test-package-config.mjs`            | Executable assertions for delivery and VSIX policy.                             |
+| `.github/workflows/*.yml`                                                       | PR, quality, and reusable release automation.                                   |
+| `.github/{CODEOWNERS,dependabot.yml,pull_request_template.md,ISSUE_TEMPLATE/*}` | Review ownership, dependency updates, and contributor intake.                   |
 
 ### Task 1: Establish executable delivery-policy tests
 
 **Files:**
+
 - Modify: `scripts/test-release-config.mjs`
 - Create: `scripts/test-package-config.mjs`
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Consumes: JSON package/release metadata and YAML workflow/governance files through `readFile` and `js-yaml`'s `load`.
 - Produces: `npm run test:release` as the policy regression gate and `npm run test:package` as the VSIX content/size gate.
 
@@ -48,13 +50,16 @@
   Import `readFile`, `mkdtemp`, `rm`, `writeFile`, `tmpdir`, `join`, and `js-yaml`'s `load` alongside the existing Semantic Release imports. Read `package.json`, `package-lock.json`, `.nvmrc`, every workflow, Dependabot, CODEOWNERS, PR template, and both issue forms. Add exact assertions for:
 
   ```js
-  assert.equal(packageJson.engines.node, '>=24 <25');
-  assert.equal(packageJson.engines.vscode, '^1.125.0');
-  assert.equal(nvmrc, '24');
-  assert.equal(packageJson.scripts['check-types'], 'tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tools.json --noEmit');
-  assert.equal(packageJson.scripts['test:package'], 'node scripts/test-package-config.mjs');
-  assert.equal(ciWorkflow.jobs.release.needs, 'quality');
-  assert.deepEqual(ciWorkflow.jobs.quality.needs, ['commitlint', 'lint', 'test', 'test-release', 'build']);
+  assert.equal(packageJson.engines.node, ">=24 <25");
+  assert.equal(packageJson.engines.vscode, "^1.125.0");
+  assert.equal(nvmrc, "24");
+  assert.equal(
+    packageJson.scripts["check-types"],
+    "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tools.json --noEmit",
+  );
+  assert.equal(packageJson.scripts["test:package"], "node scripts/test-package-config.mjs");
+  assert.equal(ciWorkflow.jobs.release.needs, "quality");
+  assert.deepEqual(ciWorkflow.jobs.quality.needs, ["commitlint", "lint", "test", "test-release", "build"]);
   ```
 
   Assert pinned `checkout`, `setup-node`, and dependency-review action references; Node 24 in every setup step; no `continue-on-error` in the semantic-release step; and conditional Marketplace publication based on both `published` and `marketplace.available`.
@@ -70,9 +75,12 @@
   Create `scripts/test-package-config.mjs` using `spawnSync('npx', ['vsce', 'package', '--no-dependencies', '--out', archive])`, `unzip -Z1`, and a temporary directory. Require these archive entries (case-insensitively): `package.json`, `dist/`, `resources/`, `README.md`, `CHANGELOG.md`, and `LICENSE`; allow only these plus VSIX metadata; reject `src/`, `.github/`, `.codex/`, `.husky/`, `docs/`, `scripts/`, `node_modules/`, `package-lock.json`, `tsconfig.json`, `esbuild.*`, `commitlint.config.js`, `.releaserc.json`, `.nvmrc`, and `.gitignore`. Enforce a 2 MiB maximum.
 
   ```js
-  assert.ok((await stat(archive)).size < 2 * 1024 * 1024, 'VSIX exceeds 2 MiB budget');
+  assert.ok((await stat(archive)).size < 2 * 1024 * 1024, "VSIX exceeds 2 MiB budget");
   for (const path of paths) {
-    assert.ok(allowed.has(path) || allowedPrefixes.some((prefix) => path.startsWith(prefix)), `Unexpected package path: ${path}`);
+    assert.ok(
+      allowed.has(path) || allowedPrefixes.some((prefix) => path.startsWith(prefix)),
+      `Unexpected package path: ${path}`,
+    );
   }
   ```
 
@@ -94,6 +102,7 @@
 ### Task 2: Upgrade runtime and build-tooling foundations
 
 **Files:**
+
 - Create: `.nvmrc`
 - Create: `tsconfig.tools.json`
 - Create: `esbuild.ts`
@@ -104,6 +113,7 @@
 - Modify: `package-lock.json`
 
 **Interfaces:**
+
 - Consumes: the policy assertions from Task 1 and extension entry point `src/extension.ts`.
 - Produces: `check-types`, `bundle`, `bundle:prod`, and `bundle:analyze` commands suitable for Node 24 and CI.
 
@@ -148,6 +158,7 @@
 ### Task 3: Add formatting, linting, and commit-message enforcement
 
 **Files:**
+
 - Create: `eslint.config.ts`
 - Create: `.prettierrc.json`
 - Create: `.prettierignore`
@@ -157,6 +168,7 @@
 - Modify: TypeScript, JSON, Markdown, YAML, and JavaScript files changed by formatter output
 
 **Interfaces:**
+
 - Consumes: `tsconfig.json`, `tsconfig.tools.json`, the dev dependencies from Task 2, and Commitlint's existing `commitlint.config.js`.
 - Produces: `format`, `format:check`, `lint`, `lint:fix`, and a `prepare` hook; production source has no unrestricted `console` calls.
 
@@ -196,6 +208,7 @@
 ### Task 4: Enforce worktree hygiene and the ModBear VSIX allowlist
 
 **Files:**
+
 - Modify: `.gitignore`
 - Modify: `.vscodeignore`
 - Modify: `scripts/test-package-config.mjs`
@@ -203,6 +216,7 @@
 - Remove from index only: `.opencode/agents/*.md`
 
 **Interfaces:**
+
 - Consumes: Task 1's archive contract and Task 3's local tool configuration.
 - Produces: a clean checkout policy and a package that exposes only ModBear runtime and Marketplace assets.
 
@@ -250,12 +264,14 @@
 ### Task 5: Harden CI and the reusable release workflow
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 - Modify: `.github/workflows/pr-title.yml`
 - Modify: `.github/workflows/release.yml`
 - Modify: `scripts/test-release-config.mjs`
 
 **Interfaces:**
+
 - Consumes: `format:check`, `lint`, `check-types`, all existing test commands, `test:release`, `package:vsix`, and `test:package`.
 - Produces: a `quality` aggregation job that alone gates the reusable release call.
 
@@ -307,6 +323,7 @@
 ### Task 6: Add GitHub governance assets
 
 **Files:**
+
 - Create: `.github/CODEOWNERS`
 - Create: `.github/dependabot.yml`
 - Create: `.github/pull_request_template.md`
@@ -316,6 +333,7 @@
 - Modify: `scripts/test-release-config.mjs`
 
 **Interfaces:**
+
 - Consumes: the package commands and current Go/govulncheck extension terminology.
 - Produces: owner assignment, structured contributor intake, private security routing, and weekly dependency maintenance targeting `dev`.
 
@@ -345,9 +363,11 @@
 ### Task 7: Perform complete delivery verification
 
 **Files:**
+
 - Modify only if a check exposes a mechanical configuration/formatting defect: files owned by Tasks 2-6
 
 **Interfaces:**
+
 - Consumes: the completed local toolchain, package contract, workflow policy, and governance configuration.
 - Produces: a verified implementation with no behavior changes to ModBear.
 

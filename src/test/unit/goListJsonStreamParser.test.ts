@@ -15,7 +15,7 @@ test("splits a JSON object inside an escaped string and expects one complete mod
   const modules = parser.finish();
   assert.equal(modules.length, 1);
   assert.equal(modules[0]?.Path, 'foo"bar');
-  assert.equal(modules[0]?.Version, 'v1.0.0');
+  assert.equal(modules[0]?.Version, "v1.0.0");
 });
 
 test("parses multiple JSON objects split across arbitrary chunks", () => {

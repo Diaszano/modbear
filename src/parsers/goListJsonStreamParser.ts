@@ -1,5 +1,5 @@
 import { StringDecoder } from "node:string_decoder";
-import { GoListModule } from "./goListJsonParser";
+import type { GoListModule } from "./goListJsonParser";
 
 export class GoListJsonStreamParser {
   private depth = 0;
