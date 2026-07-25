@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import * as vscode from "vscode";
 import { AnalysisCache } from "../../cache/analysisCache";
 import { buildSnapshotDiagnostics } from "../../extension";
 import { ModuleScanner } from "../../orchestration/moduleScanner";
@@ -41,7 +42,7 @@ suite("full scan composition", () => {
       },
       tidy: { state: "complete", consistent: false, diff: "diff --git a/go.mod b/go.mod", errors: [] },
       toolchain: { state: "complete", installed: "go1.24.0", required: "1.25.0", suggested: "go1.26.0", errors: [] }
-    }, "warning");
+    }, "warning", "warning");
 
     assert.deepEqual(diagnostics.map((item) => item.code).sort(), [
       "GO-2026-0001",
@@ -52,6 +53,43 @@ suite("full scan composition", () => {
       "toolchain-version",
       "update-available"
     ]);
+  });
+
+  test("passes the imported-vulnerability diagnostic setting into the snapshot mapper", () => {
+    const parsed = parseGoModPositions("module example.com/app\n\nrequire example.com/library v1.0.0\n");
+    const snapshot = {
+      dependencies: [],
+      replacements: [],
+      vulnerabilities: {
+        state: "complete" as const,
+        findings: [
+          {
+            osvId: "GO-2026-imported",
+            classification: "imported" as const,
+            trace: [{ module: "example.com/library", version: "v1.0.0" }]
+          }
+        ],
+        advisories: {},
+        errors: []
+      },
+      tidy: { state: "idle" as const, consistent: true, errors: [] },
+      toolchain: { state: "idle" as const, errors: [] }
+    };
+
+    const cases: ReadonlyArray<{
+      setting: "none" | "information" | "warning";
+      expectedSeverity?: vscode.DiagnosticSeverity;
+    }> = [
+      { setting: "none" },
+      { setting: "information", expectedSeverity: vscode.DiagnosticSeverity.Information },
+      { setting: "warning", expectedSeverity: vscode.DiagnosticSeverity.Warning }
+    ];
+
+    for (const { setting, expectedSeverity } of cases) {
+      const diagnostics = buildSnapshotDiagnostics(parsed, snapshot, "none", setting);
+      assert.equal(diagnostics.length, expectedSeverity === undefined ? 0 : 1, setting);
+      assert.equal(diagnostics[0]?.severity, expectedSeverity, setting);
+    }
   });
 
   test("runs tidy only for a manual scan while retaining update and toolchain results", async () => {

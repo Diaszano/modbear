@@ -36,7 +36,8 @@ export { EXTENSION_ID };
 export function buildSnapshotDiagnostics(
   parsed: ParsedGoMod,
   snapshot: Pick<ModuleAnalysisSnapshot, "dependencies" | "replacements" | "vulnerabilities" | "tidy" | "toolchain">,
-  updateSeverity: ExtensionConfig["updateSeverity"]
+  updateSeverity: ExtensionConfig["updateSeverity"],
+  importedVulnerabilitySeverity: ExtensionConfig["importedVulnerabilitySeverity"]
 ): vscode.Diagnostic[] {
   const diagnostics: vscode.Diagnostic[] = [];
   const dependenciesByPath = new Map(snapshot.dependencies.map((status) => [status.modulePath, status]));
@@ -54,7 +55,11 @@ export function buildSnapshotDiagnostics(
     }
   }
 
-  diagnostics.push(...mapVulnerabilityDiagnostics(parsed.requirements, snapshot.vulnerabilities));
+  diagnostics.push(...mapVulnerabilityDiagnostics(
+    parsed.requirements,
+    snapshot.vulnerabilities,
+    importedVulnerabilitySeverity
+  ));
   const tidyDiagnostic = mapTidyDiagnostic(parsed, snapshot.tidy);
   if (tidyDiagnostic) diagnostics.push(tidyDiagnostic);
   diagnostics.push(...mapToolchainDiagnostics(parsed, snapshot.toolchain));
@@ -217,7 +222,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.workspace.openTextDocument(uri).then(doc => {
       const parsed = documentCache.get(doc);
       const config = readConfig(doc.uri);
-      diagnosticManager.set(doc.uri, buildSnapshotDiagnostics(parsed, snapshot, config.updateSeverity));
+      diagnosticManager.set(
+        doc.uri,
+        buildSnapshotDiagnostics(parsed, snapshot, config.updateSeverity, config.importedVulnerabilitySeverity)
+      );
     }, err => logFailure("diagnostics.open.failed", err));
   });
 
