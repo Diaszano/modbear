@@ -2,7 +2,7 @@
   "name": "modbear",
   "displayName": "ModBear",
   "description": "Dependency health and vulnerability insights for Go modules, directly inside VS Code.",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "publisher": "diaszano",
   "icon": "resources/modbear.png",
   "license": "MIT",
