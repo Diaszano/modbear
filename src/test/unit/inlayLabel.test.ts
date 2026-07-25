@@ -1,6 +1,41 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { VulnerabilityFinding } from "../../domain/vulnerability";
 import { buildInlayLabel } from "../../providers/inlayLabel";
+
+test("prioritizes a reachable vulnerability fixed version over lifecycle and update labels", () => {
+  assert.equal(
+    buildInlayLabel(
+      {
+        modulePath: "a",
+        installedVersion: "v1.0.0",
+        availableVersion: "v2.0.0",
+        updateKind: "major",
+        retractionRationales: ["bad"],
+        errors: []
+      },
+      true,
+      [{ classification: "reachable", fixedVersion: "v1.2.3" } as VulnerabilityFinding]
+    ),
+    "🛡 fixed in v1.2.3"
+  );
+});
+
+test("identifies a reachable vulnerability with no known fix", () => {
+  assert.equal(
+    buildInlayLabel(
+      {
+        modulePath: "a",
+        installedVersion: "v1.0.0",
+        retractionRationales: [],
+        errors: []
+      },
+      true,
+      [{ classification: "reachable" } as VulnerabilityFinding]
+    ),
+    "🛡 vulnerable · no fix"
+  );
+});
 
 test("prioritizes retraction over update", () => {
   assert.equal(

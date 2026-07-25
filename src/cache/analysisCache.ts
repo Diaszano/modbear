@@ -3,7 +3,7 @@ import path from "node:path";
 import type { ModuleAnalysisSnapshot } from "../domain/analysis";
 
 interface CacheEnvelope {
-  readonly schema: 2;
+  readonly schema: 3;
   readonly snapshot: ModuleAnalysisSnapshot;
   readonly lastAccessedAt: number;
 }
@@ -23,6 +23,14 @@ function isValidSnapshot(value: unknown): value is ModuleAnalysisSnapshot {
     s.vulnerabilities !== null &&
     typeof (s.vulnerabilities as any).state === "string" &&
     Array.isArray((s.vulnerabilities as any).findings) &&
+    typeof s.tidy === "object" &&
+    s.tidy !== null &&
+    typeof (s.tidy as any).state === "string" &&
+    Array.isArray((s.tidy as any).errors) &&
+    typeof s.toolchain === "object" &&
+    s.toolchain !== null &&
+    typeof (s.toolchain as any).state === "string" &&
+    Array.isArray((s.toolchain as any).errors) &&
     Array.isArray(s.errors)
   );
 }
@@ -35,10 +43,10 @@ export class AnalysisCache {
     try {
       const content = await readFile(filePath, "utf8");
       const parsed = JSON.parse(content);
-      if (parsed && parsed.schema === 2 && isValidSnapshot(parsed.snapshot)) {
+      if (parsed && parsed.schema === 3 && isValidSnapshot(parsed.snapshot)) {
         // Update lastAccessedAt on access
         const updatedEnvelope: CacheEnvelope = {
-          schema: 2,
+          schema: 3,
           snapshot: parsed.snapshot,
           lastAccessedAt: Date.now()
         };
@@ -58,7 +66,7 @@ export class AnalysisCache {
 
   public async set(key: string, snapshot: ModuleAnalysisSnapshot): Promise<void> {
     const envelope: CacheEnvelope = {
-      schema: 2,
+      schema: 3,
       snapshot,
       lastAccessedAt: Date.now()
     };
@@ -95,7 +103,7 @@ export class AnalysisCache {
           const parsed = JSON.parse(content);
           if (
             parsed &&
-            parsed.schema === 2 &&
+            parsed.schema === 3 &&
             typeof parsed.lastAccessedAt === "number" &&
             isValidSnapshot(parsed.snapshot)
           ) {

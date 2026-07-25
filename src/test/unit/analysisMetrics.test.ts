@@ -5,6 +5,8 @@ import type { ModuleAnalysisSnapshot } from "../../domain/analysis";
 import { ProcessExecutionError } from "../../execution/processRunner";
 
 const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
+const notRunTidy = { state: "idle" as const, consistent: false, errors: [] };
+const notRunToolchain = { state: "unavailable" as const, errors: [] };
 
 test("getSnapshotMetrics counts updates and warnings accurately", () => {
   const snapshot: ModuleAnalysisSnapshot = {
@@ -38,6 +40,8 @@ test("getSnapshotMetrics counts updates and warnings accurately", () => {
     ],
     replacements: [],
     vulnerabilities: notRunVulnerabilities,
+    tidy: notRunTidy,
+    toolchain: notRunToolchain,
     errors: []
   };
 

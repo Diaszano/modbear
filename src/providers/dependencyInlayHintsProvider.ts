@@ -37,6 +37,13 @@ export class DependencyInlayHintsProvider implements vscode.InlayHintsProvider {
 
     const parsed = this.cache.get(document);
     const byPath = new Map(snapshot.dependencies.map((status) => [status.modulePath, status]));
+    const findingsByModulePath = new Map<string, typeof snapshot.vulnerabilities.findings>();
+    for (const finding of snapshot.vulnerabilities.findings) {
+      for (const frame of finding.trace) {
+        const findings = findingsByModulePath.get(frame.module) ?? [];
+        findingsByModulePath.set(frame.module, [...findings, finding]);
+      }
+    }
     if (!config.get("inlayHints.enabled", true)) return [];
     const showIndirect = config.get("inlayHints.showIndirect", true);
     const showUpToDate = config.get("inlayHints.showUpToDate", false);
@@ -45,7 +52,7 @@ export class DependencyInlayHintsProvider implements vscode.InlayHintsProvider {
     return parsed.requirements.flatMap((requirement) => {
       if (requirement.indirect && !showIndirect) return [];
       const status = byPath.get(requirement.modulePath);
-      const label = status ? buildInlayLabel(status, showKind) : undefined;
+      const label = status ? buildInlayLabel(status, showKind, findingsByModulePath.get(requirement.modulePath)) : undefined;
       const finalLabel = label ?? (showUpToDate && status ? "✓ current" : undefined);
       if (!finalLabel) return [];
       let hintLabel: string | vscode.InlayHintLabelPart[] = finalLabel;

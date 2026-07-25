@@ -43,6 +43,23 @@ export interface DependencyStatus {
 
 export type AnalyzerState = "idle" | "running" | "complete" | "partial" | "failed" | "unavailable";
 
+export interface TidyAnalysis {
+  readonly state: AnalyzerState;
+  readonly consistent: boolean;
+  readonly diff?: string;
+  readonly errors: readonly AnalysisError[];
+  readonly scannedAt?: string;
+}
+
+export interface ToolchainAnalysis {
+  readonly state: AnalyzerState;
+  readonly installed?: string;
+  readonly required?: string;
+  readonly suggested?: string;
+  readonly errors: readonly AnalysisError[];
+  readonly scannedAt?: string;
+}
+
 export interface ModuleAnalysisSnapshot {
   readonly moduleId: string;
   readonly contentHash: string;
@@ -52,6 +69,8 @@ export interface ModuleAnalysisSnapshot {
   readonly dependencies: readonly DependencyStatus[];
   readonly replacements: readonly ReplacementStatus[];
   readonly vulnerabilities: VulnerabilityAnalysis;
+  readonly tidy: TidyAnalysis;
+  readonly toolchain: ToolchainAnalysis;
   readonly errors: readonly AnalysisError[];
 }
 
@@ -104,4 +123,3 @@ export function getSnapshotMetrics(snapshot: ModuleAnalysisSnapshot): SnapshotMe
   }
   return { updates, warnings };
 }
-

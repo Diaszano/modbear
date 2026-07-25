@@ -21,6 +21,23 @@ assert.match(packageText, /"modBear\.vulnerability\.timeoutSeconds"/);
 assert.match(readmeText, /vulnerability analysis unavailable/i);
 assert.doesNotMatch(readmeText, /free of vulnerabilities|no vulnerabilities/i);
 
+const packageListing = spawnSync(
+  resolve('node_modules/.bin/vsce'),
+  ['ls', '--tree', '--no-dependencies'],
+  { cwd: process.cwd(), encoding: 'utf8', env: process.env },
+);
+assert.equal(packageListing.status, 0, packageListing.stderr);
+assert.doesNotMatch(
+  packageListing.stdout,
+  /^.*\.superpowers\//m,
+  'VSIX package contents must not include Superpowers scratch files',
+);
+assert.doesNotMatch(
+  packageListing.stdout,
+  /^.*\.opencode\//m,
+  'VSIX package contents must not include OpenCode development files',
+);
+
 const analyzer = plugin('@semantic-release/commit-analyzer');
 assert.ok(Array.isArray(analyzer));
 const rules = new Map(analyzer[1].releaseRules.map(({ type, release }) => [type, release]));

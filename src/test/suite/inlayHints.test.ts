@@ -8,6 +8,8 @@ import { DependencyHoverProvider } from "../../providers/dependencyHoverProvider
 import { GoModDocumentCache } from "../../parsers/goModDocumentCache";
 
 const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
+const notRunTidy = { state: "idle" as const, consistent: false, errors: [] };
+const notRunToolchain = { state: "unavailable" as const, errors: [] };
 
 suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
   test("places the available version immediately after the installed version", async () => {
@@ -37,6 +39,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         }
       ],
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };
@@ -86,6 +90,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         errors: []
       }],
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };
@@ -126,6 +132,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         errors: []
       }],
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };
@@ -177,6 +185,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         }
       ],
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };
@@ -219,6 +229,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         }
       ],
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: {
         state: "unavailable",
         findings: [],
@@ -266,6 +278,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
         }
       ],
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: {
         state: "complete",
         findings: [
@@ -293,6 +307,69 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
     assert.ok(markdown.value.includes("reachable"));
     assert.ok(markdown.value.includes("Some critical vulnerability details"));
     assert.ok(markdown.value.includes("Fixed in: `v1.10.0`"));
+  });
+
+  test("prioritizes a reachable vulnerability in the inlay while preserving update and lifecycle hover details", async () => {
+    const document = await vscode.workspace.openTextDocument({
+      language: "go.mod",
+      content: "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.9.1\n"
+    });
+    const module: ModuleContext = {
+      id: "/workspace/app",
+      moduleRoot: "/workspace/app",
+      goModPath: document.uri.fsPath
+    };
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: module.id,
+      contentHash: "fixture",
+      createdAt: new Date(0).toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: [{
+        modulePath: "github.com/gin-gonic/gin",
+        installedVersion: "v1.9.1",
+        availableVersion: "v2.0.0",
+        updateKind: "major",
+        deprecatedMessage: "use the maintained fork",
+        retractionRationales: ["bad release"],
+        errors: []
+      }],
+      replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
+      vulnerabilities: {
+        state: "complete",
+        findings: [{
+          osvId: "GO-2026-0001",
+          fixedVersion: "v2.0.1",
+          classification: "reachable",
+          trace: [{ module: "github.com/gin-gonic/gin", version: "v1.9.1" }]
+        }],
+        advisories: { "GO-2026-0001": { id: "GO-2026-0001", summary: "Critical finding" } },
+        errors: []
+      },
+      errors: []
+    };
+    const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+    const cache = new GoModDocumentCache();
+    const inlayProvider = new DependencyInlayHintsProvider(coordinator, () => module, () => undefined, cache);
+    const hoverProvider = new DependencyHoverProvider(coordinator, () => module, cache);
+
+    const hints = inlayProvider.provideInlayHints(document);
+    const label = hints[0]?.label;
+    assert.ok(Array.isArray(label));
+    assert.equal(label[1]?.value, " 🛡 fixed in v2.0.1");
+
+    const versionIndex = document.lineAt(2).text.indexOf("v1.9.1");
+    const hover = hoverProvider.provideHover(document, new vscode.Position(2, versionIndex + 1));
+    assert.ok(hover);
+    const markdown = hover.contents[0] as vscode.MarkdownString;
+    assert.match(markdown.value, /Available: `v2.0.0`/);
+    assert.match(markdown.value, /Deprecated:/);
+    assert.match(markdown.value, /Retracted:/);
+    assert.match(markdown.value, /GO-2026-0001/);
+
+    inlayProvider.dispose();
   });
 
   test("returns empty inlay hints when modBear.enabled is false", async () => {
@@ -327,6 +404,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
           }
         ],
         replacements: [],
+        tidy: notRunTidy,
+        toolchain: notRunToolchain,
         vulnerabilities: notRunVulnerabilities,
         errors: []
       };
@@ -390,6 +469,8 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
       updateState: "complete",
       dependencies: dependenciesProxy,
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };

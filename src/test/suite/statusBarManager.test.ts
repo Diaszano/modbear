@@ -6,6 +6,8 @@ import type { ScanCoordinator } from "../../orchestration/scanCoordinator";
 import { StatusBarManager } from "../../providers/statusBarManager";
 
 const notRunVulnerabilities = { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
+const notRunTidy = { state: "idle" as const, consistent: false, errors: [] };
+const notRunToolchain = { state: "unavailable" as const, errors: [] };
 
 function getTooltipText(tooltip: string | vscode.MarkdownString | undefined): string {
   if (!tooltip) return "";
@@ -69,6 +71,8 @@ suite("StatusBarManager Test Suite", () => {
       updateState: "failed",
       dependencies: [],
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };
@@ -109,6 +113,8 @@ suite("StatusBarManager Test Suite", () => {
         }
       ],
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };
@@ -142,6 +148,8 @@ suite("StatusBarManager Test Suite", () => {
         }
       ],
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: notRunVulnerabilities,
       errors: []
     };
@@ -165,6 +173,8 @@ suite("StatusBarManager Test Suite", () => {
       updateState: "complete",
       dependencies: [],
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: {
         state: "unavailable",
         findings: [],
@@ -201,6 +211,8 @@ suite("StatusBarManager Test Suite", () => {
         }
       ],
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: {
         state: "complete",
         findings: [
@@ -245,6 +257,8 @@ suite("StatusBarManager Test Suite", () => {
         }
       ],
       replacements: [],
+      tidy: notRunTidy,
+      toolchain: notRunToolchain,
       vulnerabilities: {
         state: "unavailable",
         findings: [],
