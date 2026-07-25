@@ -169,10 +169,10 @@
   "lint": "eslint . --max-warnings 0",
   "lint:fix": "eslint . --fix --max-warnings 0",
   "prepare": "husky",
-  "verify": "npm run format:check && npm run lint && npm run check-types && npm run test:unit:run && npm run test:integration:run"
+  "verify": "npm run format:check && npm run lint && npm run check-types && npm run compile && npm run test:unit:run && npm run test:integration:run"
   ```
 
-  Keep `test:extension` separate so local `verify` is deterministic and does not require an Electron display; CI remains responsible for the headless Extension Host check.
+  Keep `test:extension` separate so local `verify` is deterministic and does not require an Electron display; compile once before the `:run` suites so tests cannot consume stale output. CI remains responsible for the headless Extension Host check.
 
 - [ ] **Step 3: Add the Commitlint hook and make mechanical fixes**
 
