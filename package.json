@@ -219,7 +219,7 @@
     "mocha": "^11.7.6",
     "prettier": "3.9.6",
     "semantic-release": "^25.0.8",
-    "typescript": "^5.7.0",
+    "typescript": "^7.0.2",
     "typescript-eslint": "^8.65.0"
   },
   "overrides": {
