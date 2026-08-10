@@ -206,7 +206,7 @@
     "@types/mocha": "^10.0.0",
     "@types/node": "^22.20.1",
     "@types/vscode": "^1.125.0",
-    "@vscode/test-electron": "^3.0.0",
+    "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.0.0",
     "@eslint/js": "^10.0.0",
     "conventional-changelog-conventionalcommits": "^10.2.1",
@@ -215,12 +215,12 @@
     "glob": "^11.0.0",
     "husky": "^9.1.7",
     "jiti": "^2.7.0",
-    "js-yaml": "^5.2.1",
-    "mocha": "^11.7.6",
+    "js-yaml": "^5.2.3",
+    "mocha": "^11.8.0",
     "prettier": "3.9.6",
-    "semantic-release": "^25.0.8",
+    "semantic-release": "^25.0.9",
     "typescript": "^5.7.0",
-    "typescript-eslint": "^8.65.0"
+    "typescript-eslint": "^8.66.0"
   },
   "overrides": {
     "diff": "8.0.4",
