@@ -15,6 +15,7 @@ import { mapUpdateDiagnostics } from "./diagnostics/updateDiagnosticMapper";
 import { mapReplacementDiagnostics } from "./diagnostics/replacementDiagnosticMapper";
 import { GoModDocumentCache } from "./parsers/goModDocumentCache";
 import { getSnapshotMetrics } from "./domain/analysis";
+import type { DependencyStatus, ModuleAnalysisSnapshot } from "./domain/analysis";
 import type { ModuleContext } from "./domain/module";
 import { Logger } from "./logging/logger";
 import { resolveTool } from "./execution/toolResolver";
@@ -29,6 +30,42 @@ async function requireTrustedWorkspace(): Promise<boolean> {
   if (vscode.workspace.isTrusted) return true;
   await vscode.window.showWarningMessage("Trust this workspace before running ModBear workspace actions.");
   return false;
+}
+
+interface DependencyDetailsQuickPickItem extends vscode.QuickPickItem {
+  readonly status: DependencyStatus;
+}
+
+function countModuleVulnerabilities(snapshot: ModuleAnalysisSnapshot, modulePath: string): number {
+  return new Set(
+    snapshot.vulnerabilities.findings
+      .filter((finding) => finding.trace.some((frame) => frame.module === modulePath))
+      .map((finding) => finding.osvId),
+  ).size;
+}
+
+function formatDependencyDetail(status: DependencyStatus, vulnerabilityCount: number): string | undefined {
+  const parts: string[] = [];
+  if (status.deprecatedMessage) {
+    parts.push(`Deprecated: ${status.deprecatedMessage}`);
+  }
+  if (status.retractionRationales.length > 0) {
+    parts.push(`Retracted (${status.retractionRationales.length})`);
+  }
+  if (vulnerabilityCount > 0) {
+    parts.push(`${vulnerabilityCount} ${vulnerabilityCount === 1 ? "vulnerability" : "vulnerabilities"}`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : undefined;
+}
+
+function buildDependencyQuickPickItems(snapshot: ModuleAnalysisSnapshot): DependencyDetailsQuickPickItem[] {
+  return snapshot.dependencies.map((status) => {
+    const detail = formatDependencyDetail(status, countModuleVulnerabilities(snapshot, status.modulePath));
+    const base = { label: status.modulePath, ...(detail ? { detail } : {}), status };
+    if (!status.availableVersion) return base;
+    const kind = status.updateKind ?? "unknown";
+    return { ...base, description: `${status.installedVersion} → ${status.availableVersion} (${kind})` };
+  });
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -256,6 +293,44 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.commands.registerCommand("modBear.copySuggestion", async (suggestion: string) => {
       await vscode.env.clipboard.writeText(suggestion);
+    }),
+    vscode.commands.registerCommand("modBear.scanModule", async () => {
+      if (!(await requireTrustedWorkspace())) return;
+      const editor = vscode.window.activeTextEditor;
+      const module = editor ? resolveModule(editor.document.uri) : undefined;
+      if (!module) {
+        void vscode.window.showWarningMessage("ModBear: Open a file inside a Go module to scan it.");
+        return;
+      }
+      output.info("Manual module scan triggered");
+      await requestScan(module);
+    }),
+    vscode.commands.registerCommand("modBear.showDetails", async () => {
+      if (!(await requireTrustedWorkspace())) return;
+      const editor = vscode.window.activeTextEditor;
+      const module = editor ? resolveModule(editor.document.uri) : undefined;
+      const snapshot = module ? coordinator.getSnapshot(module.id) : undefined;
+      if (!snapshot || snapshot.dependencies.length === 0) {
+        void vscode.window.showInformationMessage("ModBear: No dependency details available yet. Run a scan first.");
+        return;
+      }
+      const selected = await vscode.window.showQuickPick(buildDependencyQuickPickItems(snapshot), {
+        title: "ModBear: Dependency Details",
+        placeHolder: "Select a dependency",
+      });
+      if (!selected) return;
+      const { status } = selected;
+      if (!status.availableVersion) return;
+      const choice = await vscode.window.showInformationMessage(
+        `ModBear: Update ${status.modulePath} to ${status.availableVersion}?`,
+        "Copy update command",
+      );
+      if (choice === "Copy update command") {
+        await vscode.commands.executeCommand(
+          "modBear.copySuggestion",
+          `go get ${status.modulePath}@${status.availableVersion}`,
+        );
+      }
     }),
     vscode.commands.registerCommand("modBear.showOutput", () => {
       output.show();
