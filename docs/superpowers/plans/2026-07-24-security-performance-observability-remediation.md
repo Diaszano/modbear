@@ -63,7 +63,7 @@
 - Consumes: current user-facing extension metadata.
 - Produces: release copy that promises update, deprecation, and retraction analysis only until Task 7 ships; a lockfile without the audited Mocha dependency chain.
 
-- [ ] **Step 1: Add a release-copy regression test**
+- [x] **Step 1: Add a release-copy regression test**
 
 Add this assertion to `scripts/test-release-config.mjs` after its package metadata checks:
 
@@ -75,13 +75,13 @@ assert.doesNotMatch(packageText, forbiddenBeforeVulnerabilitySupport);
 assert.doesNotMatch(readmeText, forbiddenBeforeVulnerabilitySupport);
 ```
 
-- [ ] **Step 2: Run the regression test to verify it fails**
+- [x] **Step 2: Run the regression test to verify it fails**
 
 Run: `npm run test:release`
 
 Expected: FAIL because current package and README claim vulnerability insights or `govulncheck` support.
 
-- [ ] **Step 3: Make the minimum copy and dependency changes**
+- [x] **Step 3: Make the minimum copy and dependency changes**
 
 Replace the package description with `Dependency updates and lifecycle insights for Go modules, directly inside VS Code.` Remove unimplemented `govulncheck` configuration names from `capabilities.untrustedWorkspaces.restrictedConfigurations`, remove vulnerability wording from README, architecture, security documentation, and the scanning status tooltip.
 
@@ -95,13 +95,13 @@ npm install --package-lock-only
 
 Do not run `npm audit fix --force`; it can change unrelated release tooling. The overrides are acceptable only when the full test suite and full `npm audit` pass, proving the stable test runner remains compatible.
 
-- [ ] **Step 4: Verify the release surface and audit result**
+- [x] **Step 4: Verify the release surface and audit result**
 
 Run: `npm run test:release && npm audit --omit=dev && npm audit`
 
 Expected: release test passes; production audit has zero vulnerabilities; the full audit reports zero vulnerabilities.
 
-- [ ] **Step 5: Commit the independently safe release correction**
+- [x] **Step 5: Commit the independently safe release correction**
 
 ```bash
 git add package.json package-lock.json README.md docs/architecture.md docs/security.md src/providers/statusBarManager.ts scripts/test-release-config.mjs
@@ -126,7 +126,7 @@ git commit -m "fix: remove unsupported vulnerability claims"
 - Consumes: `ProcessResult` from `runProcess`.
 - Produces: `requireSuccessfulExit(result, command): ProcessResult`, which throws `ProcessExecutionError` with `kind: "exit-nonzero"` and its attached safe process result.
 
-- [ ] **Step 1: Write failure-first process tests**
+- [x] **Step 1: Write failure-first process tests**
 
 Extend `fake-tool.mjs` with:
 
@@ -156,13 +156,13 @@ test("captures a non-zero exit for the caller to classify", async () => {
 
 Add an analyzer test asserting that a `go list` exit code of 7 rejects with `ProcessExecutionError` kind `exit-nonzero` rather than returning statuses with empty errors.
 
-- [ ] **Step 2: Run the new tests to verify the analyzer test fails**
+- [x] **Step 2: Run the new tests to verify the analyzer test fails**
 
 Run: `npm run compile && node --test out/test/integration/processRunner.test.js out/test/unit/updateAnalyzer.test.js`
 
 Expected: the process capture test passes; the update analyzer test fails because `exitCode` is currently ignored.
 
-- [ ] **Step 3: Add the explicit outcome helper and use it for `go list`**
+- [x] **Step 3: Add the explicit outcome helper and use it for `go list`**
 
 Create `src/execution/processOutcome.ts`:
 
@@ -182,13 +182,13 @@ Extend `ProcessExecutionError` with `"exit-nonzero"` and an optional `result?: P
 
 In `processRunner.ts`, replace direct `child.kill("SIGKILL")` with a `terminateProcessTree(child)` helper. On POSIX spawn the process detached and kill `-child.pid`; on Windows use shell-free `taskkill /pid <pid> /T /F`. Guard missing PIDs and ignore `ESRCH`.
 
-- [ ] **Step 4: Run focused verification**
+- [x] **Step 4: Run focused verification**
 
 Run: `npm run compile && node --test out/test/integration/processRunner.test.js out/test/unit/updateAnalyzer.test.js`
 
 Expected: PASS; a non-zero `go list` cannot produce a successful update result.
 
-- [ ] **Step 5: Commit the process contract**
+- [x] **Step 5: Commit the process contract**
 
 ```bash
 git add src/execution/processRunner.ts src/execution/processOutcome.ts src/analyzers/updateAnalyzer.ts src/test/integration/processRunner.test.ts src/test/unit/updateAnalyzer.test.ts src/test/fixtures/fake-tool.mjs
@@ -213,7 +213,7 @@ git commit -m "fix: classify failed go processes"
 - Consumes: typed process errors from Task 2.
 - Produces: a failed initial snapshot or a `stale: true`, `updateState: "partial"` refresh snapshot retaining prior dependencies and replacements.
 
-- [ ] **Step 1: Add the stale-refresh test**
+- [x] **Step 1: Add the stale-refresh test**
 
 Add this test to `scanCoordinator.test.ts`:
 
@@ -238,13 +238,13 @@ test("retains the last successful snapshot as stale when refresh fails", async (
 });
 ```
 
-- [ ] **Step 2: Run it to verify failure**
+- [x] **Step 2: Run it to verify failure**
 
 Run: `npm run compile && node --test out/test/unit/scanCoordinator.test.js`
 
 Expected: FAIL because a refresh failure currently replaces the snapshot with an empty `failed` snapshot.
 
-- [ ] **Step 3: Build the stale snapshot in the coordinator**
+- [x] **Step 3: Build the stale snapshot in the coordinator**
 
 Inside the non-abort branch of `runScan`, retain `const previous = this.snapshots.get(request.module.id);`. When `previous` exists, publish:
 
@@ -263,13 +263,13 @@ Add `classifyAnalysisError` in `domain/analysis.ts`; map `ProcessExecutionError`
 
 Update `StatusBarManager` to render partial/stale snapshots as `$(warning) ModBear: Results may be stale`, and update the snapshot listener to avoid displaying raw error values in VS Code notifications.
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 Run: `npm run compile && node --test out/test/unit/scanCoordinator.test.js out/test/unit/analysisMetrics.test.js`
 
 Expected: PASS; cancellation remains absent from user-facing failures.
 
-- [ ] **Step 5: Commit stale-result behavior**
+- [x] **Step 5: Commit stale-result behavior**
 
 ```bash
 git add src/orchestration/scanCoordinator.ts src/domain/analysis.ts src/providers/statusBarManager.ts src/extension.ts src/test/unit/scanCoordinator.test.ts src/test/unit/analysisMetrics.test.ts
@@ -294,7 +294,7 @@ git commit -m "fix: retain stale snapshots after refresh failures"
 - Consumes: arbitrary command text, stderr, errors, paths, and `modBear.output.logLevel`.
 - Produces: `redactLogText(value: string): string` and `Logger.event(level, name, fields)`; neither can emit a raw sensitive value.
 
-- [ ] **Step 1: Write redaction and log-level tests**
+- [x] **Step 1: Write redaction and log-level tests**
 
 Add test cases such as:
 
@@ -309,13 +309,13 @@ test("redacts credentials and absolute paths in arbitrary log text", () => {
 
 Create logger tests using an injected channel double: `debug` events do not emit when configured as `info`, while error events do, and event fields are redacted before the double receives them.
 
-- [ ] **Step 2: Run the new tests to verify failure**
+- [x] **Step 2: Run the new tests to verify failure**
 
 Run: `npm run compile && node --test out/test/unit/environment.test.js out/test/unit/logger.test.js`
 
 Expected: FAIL because current redaction handles only basic-auth URLs and Logger ignores level configuration.
 
-- [ ] **Step 3: Implement a single redaction boundary**
+- [x] **Step 3: Implement a single redaction boundary**
 
 Implement `redactLogText` to apply `redactUrlCredentials`, replace user-home and absolute filesystem paths with `[redacted-path]`, and replace values following keys matching `token|secret|password|authorization|proxy` with `***`. Make `redactCommand` delegate to it.
 
@@ -333,13 +333,13 @@ public event(level: LogLevel, name: string, fields: Readonly<Record<string, stri
 
 Add `logLevel` to `ExtensionConfig` and construct the Logger with `() => readConfig().logLevel`. Route command, scan failures, discovery failures, and process stderr through `event`; do not pass module IDs or raw paths as fields.
 
-- [ ] **Step 4: Verify focused redaction behavior**
+- [x] **Step 4: Verify focused redaction behavior**
 
 Run: `npm run compile && node --test out/test/unit/environment.test.js out/test/unit/logger.test.js`
 
 Expected: PASS; no tested sensitive component reaches the fake output channel.
 
-- [ ] **Step 5: Commit the privacy boundary**
+- [x] **Step 5: Commit the privacy boundary**
 
 ```bash
 git add src/logging/redaction.ts src/logging/logger.ts src/config/config.ts src/extension.ts src/test/unit/environment.test.ts src/test/unit/logger.test.ts
@@ -363,7 +363,7 @@ git commit -m "fix: redact local scan logs"
 - Consumes: newline-delimited `govulncheck -format json` messages.
 - Produces: `parseGovulncheckStream(input): GovulncheckStream` with protocol v1 config, advisory map, raw findings, and progress messages.
 
-- [ ] **Step 1: Write parser tests and fixtures**
+- [x] **Step 1: Write parser tests and fixtures**
 
 Create a fixture containing config, progress, OSV, and finding messages. Assert protocol parsing, ignored future fields, and rejection of protocol `v2`:
 
@@ -376,25 +376,25 @@ test("rejects unsupported protocol major versions", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to confirm the missing parser**
+- [x] **Step 2: Run tests to confirm the missing parser**
 
 Run: `npm run compile`
 
 Expected: FAIL because `domain/vulnerability.ts` and `govulncheckJsonParser.ts` do not exist.
 
-- [ ] **Step 3: Implement validated protocol-v1 parsing**
+- [x] **Step 3: Implement validated protocol-v1 parsing**
 
 Define `VulnerabilityClassification` as `"reachable" | "imported" | "module-only" | "unknown"` and a separate `VulnerabilityState` as `"complete" | "unavailable" | "not-run"`.
 
 Parse each non-empty JSONL line as an object. Require exactly one config with `protocol_version` major `1`; retain known fields only; ignore unknown message fields. For each finding, retain OSV ID, fixed version, and trace frames. Reject malformed JSON with a line number. Do not render or log raw advisory text in this task.
 
-- [ ] **Step 4: Run parser verification**
+- [x] **Step 4: Run parser verification**
 
 Run: `npm run compile && node --test out/test/unit/govulncheckJsonParser.test.js`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit protocol support**
+- [x] **Step 5: Commit protocol support**
 
 ```bash
 git add src/domain/vulnerability.ts src/parsers/govulncheckJsonParser.ts src/test/fixtures/govulncheck src/test/unit/govulncheckJsonParser.test.ts
@@ -424,7 +424,7 @@ git commit -m "feat: parse govulncheck protocol"
 - Consumes: a module root, validated `govulncheck` path, `AbortSignal`, and JSONL parser from Task 5.
 - Produces: `VulnerabilityAnalysis { state, findings, errors }`; it is `unavailable`, never clean, when tool resolution or execution fails.
 
-- [ ] **Step 1: Add behavior tests**
+- [x] **Step 1: Add behavior tests**
 
 Use the fake tool to emit the fixture stream. Add tests asserting a trace with a user-code frame is `reachable`, a package-only trace is `imported`, a module-only trace is `module-only`, and an empty trace is `unknown`. Add a missing executable test:
 
@@ -438,13 +438,13 @@ assert.deepEqual(result, {
 
 Extend the extension-host trust test to assert that a fake `govulncheck` executable was not invoked while `workspace.isTrusted` is false.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npm run compile`
 
 Expected: FAIL because the analyzer, configuration, and snapshot field do not exist.
 
-- [ ] **Step 3: Implement analyzer isolation and settings**
+- [x] **Step 3: Implement analyzer isolation and settings**
 
 Add these restricted settings to `package.json` and `readConfig`:
 
@@ -460,13 +460,13 @@ Resolve the executable with `resolveTool`, execute `["-format", "json", "-scan",
 
 Extend `ModuleAnalysisSnapshot` with `vulnerabilities: VulnerabilityAnalysis`. Use a dedicated `VulnerabilityCoordinator` semaphore with max concurrency one, so normal update concurrency does not start multiple expensive vulnerability scans. Construct and invoke it only after the workspace-trust guard passes.
 
-- [ ] **Step 4: Verify analyzer and trust boundaries**
+- [x] **Step 4: Verify analyzer and trust boundaries**
 
 Run: `npm run compile && node --test out/test/unit/vulnerabilityAnalyzer.test.js out/test/unit/vulnerabilityAggregator.test.js && npm run test:extension`
 
 Expected: PASS; untrusted workspaces invoke neither Go nor `govulncheck`.
 
-- [ ] **Step 5: Commit the trusted vulnerability analyzer**
+- [x] **Step 5: Commit the trusted vulnerability analyzer**
 
 ```bash
 git add src/analyzers/vulnerabilityAnalyzer.ts src/analyzers/vulnerabilityAggregator.ts src/config/defaults.ts src/config/config.ts package.json src/domain/analysis.ts src/orchestration/moduleScanner.ts src/extension.ts src/test/unit/vulnerabilityAnalyzer.test.ts src/test/unit/vulnerabilityAggregator.test.ts src/test/suite/trust.test.ts
@@ -497,29 +497,29 @@ git commit -m "feat: analyze Go vulnerabilities in trusted workspaces"
 - Consumes: `VulnerabilityAnalysis` from Task 6 and parsed `go.mod` requirements.
 - Produces: diagnostic severity and UI state that distinguishes findings from unavailable analysis.
 
-- [ ] **Step 1: Add mapping and unavailable-state tests**
+- [x] **Step 1: Add mapping and unavailable-state tests**
 
 Add tests that expect reachable findings to be `DiagnosticSeverity.Error`, imported and module-only findings to be warnings, and unavailable analysis to add no false “clean” diagnostic. Verify hover text includes `Vulnerability analysis unavailable` when the state is unavailable.
 
-- [ ] **Step 2: Run tests to verify failure**
+- [x] **Step 2: Run tests to verify failure**
 
 Run: `npm run compile`
 
 Expected: FAIL because the mapper and UI projection do not exist.
 
-- [ ] **Step 3: Implement diagnostic and UI projection**
+- [x] **Step 3: Implement diagnostic and UI projection**
 
 Map only findings with a module path matching a `go.mod` requirement. Escape all advisory text with the existing Markdown escaping function and keep `MarkdownString.isTrusted = false`. Add vulnerability counts to status-bar metrics only for complete analysis; render `$(question) ModBear: Vulnerability analysis unavailable` when the analyzer cannot run.
 
 Restore the vulnerability wording removed in Task 1 only after these tests pass. Replace Task 1's release assertion with positive checks for `govulncheck` settings and explicit unavailable-state wording; do not claim all modules are free of vulnerabilities.
 
-- [ ] **Step 4: Verify user-facing behavior**
+- [x] **Step 4: Verify user-facing behavior**
 
 Run: `npm run compile && npm run test:extension && npm run test:release`
 
 Expected: PASS; UI labels distinguish discovered findings, no findings, and unavailable coverage.
 
-- [ ] **Step 5: Commit UI and documentation accuracy**
+- [x] **Step 5: Commit UI and documentation accuracy**
 
 ```bash
 git add src/diagnostics/vulnerabilityDiagnosticMapper.ts src/diagnostics/diagnosticManager.ts src/providers/dependencyHoverProvider.ts src/providers/statusBarManager.ts src/extension.ts README.md docs/architecture.md docs/security.md package.json scripts/test-release-config.mjs src/test/suite/vulnerabilityDiagnosticMapper.test.ts src/test/suite/inlayHints.test.ts
@@ -544,17 +544,17 @@ git commit -m "feat: surface vulnerability findings"
 - Consumes: module IDs and VS Code open/save events.
 - Produces: one debounce timer per module, cancellation on deactivate, explicit discovery result `{ modules, errors }`, and no scans when `modBear.enabled` is false.
 
-- [ ] **Step 1: Write scheduling and discovery failure tests**
+- [x] **Step 1: Write scheduling and discovery failure tests**
 
 Add a fake timer test that schedules modules `a` and `b` within 500ms and verifies both callbacks run once. Add a test that schedules `a` twice and verifies only its first timer is replaced. Add a discovery test using an unreadable or removed child directory and assert that a sibling `go.mod` remains discovered.
 
-- [ ] **Step 2: Run tests to verify failure**
+- [x] **Step 2: Run tests to verify failure**
 
 Run: `npm run compile && node --test out/test/unit/scanScheduling.test.js out/test/integration/moduleDiscovery.test.js`
 
 Expected: FAIL because the extension has one global timeout and discovery rejects on directory errors.
 
-- [ ] **Step 3: Implement module-scoped scheduling and resilient discovery**
+- [x] **Step 3: Implement module-scoped scheduling and resilient discovery**
 
 Replace `let scanTimeout` with `const scanTimeouts = new Map<string, NodeJS.Timeout>()`. In `triggerScan`, check `config.enabled`, clear only `scanTimeouts.get(module.id)`, set the replacement, and remove it when its callback begins. Dispose all remaining timers through a `Disposable` registered in `context.subscriptions`.
 
@@ -569,13 +569,13 @@ export interface ModuleDiscoveryResult {
 
 Catch `opendir`, `realpath`, and per-entry errors inside `walk`; append a generic error and continue sibling traversal. Preserve abort behavior by rethrowing when `signal.aborted`. In activation and manual scan, catch the discovery promise, send a redacted warning event, set discovered modules, then refresh inlays for already-open `go.mod` documents.
 
-- [ ] **Step 4: Verify scheduling and discovery**
+- [x] **Step 4: Verify scheduling and discovery**
 
 Run: `npm run compile && node --test out/test/unit/scanScheduling.test.js out/test/integration/moduleDiscovery.test.js && npm run test:extension`
 
 Expected: PASS; a module loaded while initial discovery is pending is refreshed after discovery completes.
 
-- [ ] **Step 5: Commit scheduler and discovery resilience**
+- [x] **Step 5: Commit scheduler and discovery resilience**
 
 ```bash
 git add src/extension.ts src/discovery/moduleDiscovery.ts src/providers/dependencyInlayHintsProvider.ts src/test/unit/moduleDiscovery.test.ts src/test/suite/inlayHints.test.ts src/test/unit/scanScheduling.test.ts
@@ -600,7 +600,7 @@ git commit -m "fix: schedule scans independently per module"
 - Consumes: a VS Code `TextDocument`, its `uri.toString()`, and `version`.
 - Produces: `GoModDocumentCache.get(document): ParsedGoMod`, returning the same parsed positions for an unchanged document and reparsing only when its version changes.
 
-- [ ] **Step 1: Write provider-cache and lookup-complexity tests**
+- [x] **Step 1: Write provider-cache and lookup-complexity tests**
 
 Create a test with a document double whose `getText` call count is observable:
 
@@ -616,13 +616,13 @@ assert.equal(getTextCalls, 2);
 
 Extend inlay and diagnostic tests with 100 requirements and 100 statuses, then assert the code constructs a `Map` lookup once rather than calling `.find` inside the requirement loop. Use a spy wrapper around the status collection if a direct operation-count assertion is impractical.
 
-- [ ] **Step 2: Run tests to verify failure**
+- [x] **Step 2: Run tests to verify failure**
 
 Run: `npm run compile && node --test out/test/unit/goModDocumentCache.test.js && npm run test:extension`
 
 Expected: FAIL because every hover, inlay request, and snapshot event reparses the document, and diagnostic mapping repeatedly scans the dependency array.
 
-- [ ] **Step 3: Implement version-scoped parsing and maps**
+- [x] **Step 3: Implement version-scoped parsing and maps**
 
 Create `GoModDocumentCache` with this shape:
 
@@ -653,13 +653,13 @@ export class GoModDocumentCache {
 
 Inject one shared cache into the hover and inlay providers and use it from the snapshot listener. In `extension.ts`, create `const dependenciesByPath = new Map(snapshot.dependencies.map(status => [status.modulePath, status]));` and use `.get(req.modulePath)` while mapping diagnostics. Register document-close cleanup and dispose the cache with the extension context.
 
-- [ ] **Step 4: Verify UI parsing behavior**
+- [x] **Step 4: Verify UI parsing behavior**
 
 Run: `npm run compile && node --test out/test/unit/goModDocumentCache.test.js && npm run test:extension`
 
 Expected: PASS; the same document version is parsed once per cache lifetime and diagnostics use indexed dependency lookup.
 
-- [ ] **Step 5: Commit editor-provider optimization**
+- [x] **Step 5: Commit editor-provider optimization**
 
 ```bash
 git add src/parsers/goModDocumentCache.ts src/providers/dependencyInlayHintsProvider.ts src/providers/dependencyHoverProvider.ts src/extension.ts src/test/unit/goModDocumentCache.test.ts src/test/suite/inlayHints.test.ts
@@ -688,17 +688,17 @@ git commit -m "perf: cache parsed Go module documents"
 - Consumes: byte chunks from `go list -json` and cacheable snapshots.
 - Produces: incremental `GoListJsonStreamParser`, atomic cache entries with schema `2`, and deterministic pruning to 100 snapshots.
 
-- [ ] **Step 1: Write parser and cache-limit tests**
+- [x] **Step 1: Write parser and cache-limit tests**
 
 Add a chunk-boundary test that splits a JSON object inside an escaped string and expects the same module array as one complete chunk. Add tests that write 101 snapshots with increasing timestamps and assert only 100 remain, that a truncated JSON cache file is ignored, and that changing `GOPROXY` changes the cache key.
 
-- [ ] **Step 2: Run tests to confirm failure**
+- [x] **Step 2: Run tests to confirm failure**
 
 Run: `npm run compile && node --test out/test/unit/goListJsonStreamParser.test.js out/test/unit/analysisCache.test.js out/test/unit/cacheKey.test.js`
 
 Expected: FAIL because output is buffered in full and the cache has neither schema validation nor pruning.
 
-- [ ] **Step 3: Implement incremental output and cache schema 2**
+- [x] **Step 3: Implement incremental output and cache schema 2**
 
 Add optional process options:
 
@@ -715,13 +715,13 @@ Upgrade cache envelopes to `{ schema: 2, snapshot, lastAccessedAt }`. Validate e
 
 Add selected resolution inputs to `createCacheKey`: `GOFLAGS`, `GOPROXY`, `GONOPROXY`, `GOPRIVATE`, `GOSUMDB`, `GONOSUMDB`, and the cached result of `go version`. Hash values only; never log them.
 
-- [ ] **Step 4: Run focused performance/resilience verification**
+- [x] **Step 4: Run focused performance/resilience verification**
 
 Run: `npm run compile && node --test out/test/unit/goListJsonStreamParser.test.js out/test/unit/analysisCache.test.js out/test/unit/cacheKey.test.js out/test/unit/updateAnalyzer.test.js`
 
 Expected: PASS; the updater no longer constructs a full stdout string and cache size stays at or below 100.
 
-- [ ] **Step 5: Commit bounded processing and cache**
+- [x] **Step 5: Commit bounded processing and cache**
 
 ```bash
 git add src/execution/processRunner.ts src/parsers/goListJsonStreamParser.ts src/analyzers/updateAnalyzer.ts src/cache/analysisCache.ts src/cache/cacheKey.ts src/execution/goToolIdentity.ts src/orchestration/moduleScanner.ts src/test/unit/goListJsonStreamParser.test.ts src/test/unit/cacheKey.test.ts src/test/unit/analysisCache.test.ts
@@ -749,7 +749,7 @@ git commit -m "perf: bound Go scan memory and cache growth"
 - Consumes: typed process outcomes, cache hit/miss information, scan states, and configured log level.
 - Produces: local `scan.started`, `scan.finished`, and `scan.failed` events with only aggregate/redacted fields.
 
-- [ ] **Step 1: Add lifecycle event assertions**
+- [x] **Step 1: Add lifecycle event assertions**
 
 Extend the logger double tests to assert these exact event names and required fields:
 
@@ -760,25 +760,25 @@ assert.match(messages[2]!, /^scan\.failed kind=exit-nonzero durationMs=\d+ exitC
 assert.doesNotMatch(messages.join("\\n"), /\/home\/|example\.com\/private|password/);
 ```
 
-- [ ] **Step 2: Run tests to verify the missing events**
+- [x] **Step 2: Run tests to verify the missing events**
 
 Run: `npm run compile && node --test out/test/unit/logger.test.js out/test/unit/scanCoordinator.test.js`
 
 Expected: FAIL because commands are logged without outcome, duration, cache state, or typed failure information.
 
-- [ ] **Step 3: Emit events only at trusted aggregation boundaries**
+- [x] **Step 3: Emit events only at trusted aggregation boundaries**
 
 Have `ModuleScanner.scan` emit `scan.started` before cache lookup, `scan.finished` with `durationMs`, `cache`, and dependency count on success, and `scan.failed` in a catch block using Task 4 redaction and Task 2 error kind. Never attach module ID, module path, CWD, executable, raw environment, or advisory text. Make `ScanCoordinator` emit a separate debug event for cancellation only.
 
 Document that logs are local, controlled by `modBear.output.logLevel`, and contain no telemetry. Add a CI `npm audit` step after `npm ci` in the dependency-review job so future vulnerable development lockfile changes fail before release.
 
-- [ ] **Step 4: Run the complete release gate**
+- [x] **Step 4: Run the complete release gate**
 
 Run: `npm audit && npm run check && npm test && npm run test:extension && npm run test:release && npm run package:vsix`
 
 Expected: every command exits 0; no output channel test includes a path, private module identifier, or credential.
 
-- [ ] **Step 5: Commit observability and CI enforcement**
+- [x] **Step 5: Commit observability and CI enforcement**
 
 ```bash
 git add src/logging/logger.ts src/extension.ts src/orchestration/moduleScanner.ts src/orchestration/scanCoordinator.ts README.md docs/security.md src/test/unit/logger.test.ts src/test/unit/scanCoordinator.test.ts .github/workflows/ci.yml
@@ -789,13 +789,13 @@ git commit -m "feat: add redacted scan lifecycle events"
 
 ## Final Verification Checklist
 
-- [ ] `git diff --check`
-- [ ] `npm audit --omit=dev`
-- [ ] `npm audit`
-- [ ] `npm run check`
-- [ ] `npm test`
-- [ ] `npm run test:extension`
-- [ ] `npm run test:release`
-- [ ] `npm run package:vsix`
+- [x] `git diff --check`
+- [x] `npm audit --omit=dev`
+- [x] `npm audit`
+- [x] `npm run check`
+- [x] `npm test`
+- [x] `npm run test:extension`
+- [x] `npm run test:release`
+- [x] `npm run package:vsix`
 - [ ] Manual VS Code check in a trusted Go workspace: success, stale failure, unavailable `govulncheck`, and vulnerability finding states are visually distinct.
 - [ ] Manual VS Code check in an untrusted workspace: no Go, `govulncheck`, terminal preparation, or filesystem discovery process is started.

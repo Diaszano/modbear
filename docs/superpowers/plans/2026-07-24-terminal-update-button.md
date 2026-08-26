@@ -43,7 +43,7 @@
 - Consumes: an injected `TerminalFactory(options: TerminalCreationOptions): TerminalHandle`.
 - Produces: `PREPARE_UPDATE_COMMAND_ID`, `PrepareUpdateArgs`, `buildGoGetSuggestion(input)`, and `TerminalUpdateManager.prepare(input)` / `forget(terminal)`.
 
-- [ ] **Step 1: Write the failing manager tests**
+- [x] **Step 1: Write the failing manager tests**
 
 Create `src/test/unit/terminalUpdateManager.test.ts`:
 
@@ -132,7 +132,7 @@ test("forgets a closed terminal before the next preparation", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run:
 
@@ -142,7 +142,7 @@ npm run compile
 
 Expected: FAIL with `TS2307` because `../../providers/terminalUpdateManager` does not exist.
 
-- [ ] **Step 3: Implement the terminal update manager**
+- [x] **Step 3: Implement the terminal update manager**
 
 Create `src/providers/terminalUpdateManager.ts`:
 
@@ -221,7 +221,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 ```
 
-- [ ] **Step 4: Run the focused unit tests**
+- [x] **Step 4: Run the focused unit tests**
 
 Run:
 
@@ -231,7 +231,7 @@ npm run compile && node --test out/test/unit/terminalUpdateManager.test.js
 
 Expected: 5 tests pass and `sendText` is observed with `shouldExecute: false`.
 
-- [ ] **Step 5: Commit the manager**
+- [x] **Step 5: Commit the manager**
 
 ```bash
 git add src/providers/terminalUpdateManager.ts src/test/unit/terminalUpdateManager.test.ts
@@ -250,7 +250,7 @@ git commit -m "feat: add safe terminal update manager"
 - Consumes: `PREPARE_UPDATE_COMMAND_ID` and `PrepareUpdateArgs` from Task 1.
 - Produces: an `InlayHintLabelPart[]` where the `$(terminal)` part alone carries the command.
 
-- [ ] **Step 1: Update the extension test to require the clickable icon**
+- [x] **Step 1: Update the extension test to require the clickable icon**
 
 In the first test in `src/test/suite/inlayHints.test.ts`, replace the label assertions after `assert.equal(hints[0]?.position.character, ...)` with:
 
@@ -317,7 +317,7 @@ test("does not add the terminal action without an available version", async () =
 });
 ```
 
-- [ ] **Step 2: Run the extension test to verify it fails**
+- [x] **Step 2: Run the extension test to verify it fails**
 
 Run:
 
@@ -327,7 +327,7 @@ npm run compile && npm run bundle && npm run test:extension:run
 
 Expected: FAIL because the update hint label is still a string and has no terminal command.
 
-- [ ] **Step 3: Build the composite inlay label**
+- [x] **Step 3: Build the composite inlay label**
 
 Add this import to `src/providers/dependencyInlayHintsProvider.ts`:
 
@@ -367,7 +367,7 @@ hint.tooltip = new vscode.MarkdownString(
 return [hint];
 ```
 
-- [ ] **Step 4: Run provider and unit regression tests**
+- [x] **Step 4: Run provider and unit regression tests**
 
 Run:
 
@@ -377,7 +377,7 @@ npm run compile && node --test out/test/unit/inlayLabel.test.js && npm run bundl
 
 Expected: unit label tests pass and all VS Code extension tests pass, including the composite label assertions.
 
-- [ ] **Step 5: Commit the clickable icon**
+- [x] **Step 5: Commit the clickable icon**
 
 ```bash
 git add src/providers/dependencyInlayHintsProvider.ts src/test/suite/inlayHints.test.ts
@@ -398,7 +398,7 @@ git commit -m "feat: add terminal action to update hints"
 - Consumes: `PREPARE_UPDATE_COMMAND_ID` and `TerminalUpdateManager` from Task 1; command arguments emitted by Task 2.
 - Produces: a registered internal command that checks Workspace Trust before any terminal interaction and releases closed terminals from the manager.
 
-- [ ] **Step 1: Write failing command integration tests**
+- [x] **Step 1: Write failing command integration tests**
 
 Create `src/test/suite/terminalUpdateCommand.test.ts`:
 
@@ -503,7 +503,7 @@ suite("Terminal update command", () => {
 });
 ```
 
-- [ ] **Step 2: Run the command tests to verify they fail**
+- [x] **Step 2: Run the command tests to verify they fail**
 
 Run:
 
@@ -513,7 +513,7 @@ npm run compile && npm run bundle && npm run test:extension:run
 
 Expected: FAIL because `modBear.prepareUpdateInTerminal` is not registered.
 
-- [ ] **Step 3: Register the trusted command and terminal cleanup**
+- [x] **Step 3: Register the trusted command and terminal cleanup**
 
 Add this import to `src/extension.ts`:
 
@@ -554,7 +554,7 @@ Change the untrusted-workspace warning in `requireTrustedWorkspace` to:
 await vscode.window.showWarningMessage("Trust this workspace before running ModBear workspace actions.");
 ```
 
-- [ ] **Step 4: Run the command integration tests**
+- [x] **Step 4: Run the command integration tests**
 
 Run:
 
@@ -564,7 +564,7 @@ npm run compile && npm run bundle && npm run test:extension:run
 
 Expected: all extension tests pass; the trusted command records `shouldExecute: false`, and the untrusted command never calls `createTerminal`.
 
-- [ ] **Step 5: Update the user and security documentation**
+- [x] **Step 5: Update the user and security documentation**
 
 In `README.md`, replace the read-only guarantee paragraphs with:
 
@@ -596,7 +596,7 @@ Add these enforcement bullets after the existing repository verification command
 - Terminal preparation is blocked when VS Code reports an untrusted workspace.
 ```
 
-- [ ] **Step 6: Run complete verification**
+- [x] **Step 6: Run complete verification**
 
 Run:
 
@@ -609,7 +609,7 @@ git diff --check
 
 Expected: TypeScript compilation succeeds, all unit and integration tests pass, all VS Code extension tests pass, the bundle builds, and `git diff --check` prints no errors.
 
-- [ ] **Step 7: Verify the no-automatic-execution invariant directly**
+- [x] **Step 7: Verify the no-automatic-execution invariant directly**
 
 Run:
 
@@ -624,7 +624,7 @@ Expected:
 - Test fakes may record `sendText`, but production code has no other terminal update call.
 - No terminal update path uses shell integration execution, `execFile`, or `spawn`.
 
-- [ ] **Step 8: Commit command wiring and documentation**
+- [x] **Step 8: Commit command wiring and documentation**
 
 ```bash
 git add src/extension.ts src/test/suite/terminalUpdateCommand.test.ts README.md docs/security.md

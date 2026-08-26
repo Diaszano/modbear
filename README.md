@@ -41,7 +41,7 @@ ModBear integrates `govulncheck` to scan your Go project dependencies for vulner
 
 ## Supported Go/VS Code versions
 
-- **VS Code**: `^1.109.0` or newer.
+- **VS Code**: `^1.125.0` or newer.
 - **Go Toolchain**: Go 1.21 or newer (requires `go list -u -m -json all` support).
 
 ## Workspace Trust
