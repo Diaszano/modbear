@@ -59,10 +59,10 @@
 
 **Steps:**
 
-- [ ] Write failing parity + behavior tests
-- [ ] Register both commands; all tests green
-- [ ] Verify: `npm run lint && npm run test`
-- [ ] Commit: `fix: register declared scanModule and showDetails commands`
+- [x] Write failing parity + behavior tests
+- [x] Register both commands; all tests green
+- [x] Verify: `npm run lint && npm run test`
+- [x] Commit: `fix: register declared scanModule and showDetails commands`
 
 ## Task 2: Documentation reconciliation (Phase A)
 
@@ -70,10 +70,10 @@
 
 **Steps:**
 
-- [ ] README.md Requirements section: change VS Code `^1.109.0` → `^1.125.0` (match package.json engines)
-- [ ] Tick implemented checkboxes (`- [ ]` → `- [x]`) in: 2026-07-23 status-bar plan, 2026-07-24 terminal-update-button plan, 2026-07-24 observability-remediation plan, 2026-07-25 cicd-governance plan — verify each feature actually shipped (statusBarManager.ts, terminalUpdateManager.ts, .github workflows exist) before ticking; leave the 2026-07-25 module-health-security-completion.md untouched
-- [ ] Verify: `npm run format:check` passes; `grep -c "\- \[ \]"` returns 0 for those four files
-- [ ] Commit: `docs: align readme engines version and mark shipped plans complete`
+- [x] README.md Requirements section: change VS Code `^1.109.0` → `^1.125.0` (match package.json engines)
+- [x] Tick implemented checkboxes (`- [ ]` → `- [x]`) in: 2026-07-23 status-bar plan, 2026-07-24 terminal-update-button plan, 2026-07-24 observability-remediation plan, 2026-07-25 cicd-governance plan — verify each feature actually shipped (statusBarManager.ts, terminalUpdateManager.ts, .github workflows exist) before ticking; leave the 2026-07-25 module-health-security-completion.md untouched
+- [x] Verify: `npm run format:check` passes; `grep -c "\- \[ \]"` returns 0 for those four files
+- [x] Commit: `docs: align readme engines version and mark shipped plans complete`
 
 ## Task 3: Tidy analysis phase (Phase B)
 
@@ -152,8 +152,8 @@ Commit: `chore: complete module health release gate`
 
 ## Final Verification Checklist
 
-- [ ] `vscode.commands.getCommands()` covers every package.json-declared modBear id
-- [ ] README engines == package.json engines
-- [ ] All plan checkboxes across repo ticked or intentionally deferred with note
-- [ ] `npm run verify` equivalent full gate green
-- [ ] No `go get` / module-file mutation anywhere in src/
+- [x] `vscode.commands.getCommands()` covers every package.json-declared modBear id
+- [x] README engines == package.json engines
+- [x] All plan checkboxes across repo ticked or intentionally deferred with note
+- [x] `npm run verify` equivalent full gate green
+- [x] No `go get` / module-file mutation anywhere in src/
