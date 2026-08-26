@@ -1,8 +1,20 @@
 import { readFile } from "node:fs/promises";
-import { classifyAnalysisError, type ModuleAnalysisSnapshot } from "../domain/analysis";
+import {
+  classifyAnalysisError,
+  type AnalysisError,
+  type DependencyStatus,
+  type ImportedVulnerabilitySeverity,
+  type ModuleAnalysisSnapshot,
+  type ReplacementStatus,
+  type TidyAnalysis,
+  type ToolchainAnalysis,
+} from "../domain/analysis";
 import type { ModuleContext } from "../domain/module";
+import type { VulnerabilityAnalysis } from "../domain/vulnerability";
 import { ProcessExecutionError } from "../execution/processRunner";
 import { analyzeReplacements, attachReplacementStatuses } from "../analyzers/replacementAnalyzer";
+import { analyzeTidy } from "../analyzers/tidyAnalyzer";
+import { analyzeToolchain } from "../analyzers/toolchainAnalyzer";
 import { analyzeUpdates, buildGoListArgs } from "../analyzers/updateAnalyzer";
 import type { VulnerabilityCoordinator } from "../analyzers/vulnerabilityAnalyzer";
 import { analyzeVulnerabilities } from "../analyzers/vulnerabilityAnalyzer";
@@ -12,11 +24,62 @@ import { getGoVersion } from "../execution/goToolIdentity";
 import { parseGoModPositions } from "../parsers/goModPositionParser";
 import type { Logger } from "../logging/logger";
 
+export type ScanTrigger = "background" | "save" | "manual";
+
 export interface VulnerabilityScanOptions {
   readonly enabled: boolean;
   readonly govulncheckPath: string;
   readonly timeoutMs: number;
   readonly coordinator: VulnerabilityCoordinator;
+  readonly ttlMs: number;
+  readonly includeTests: boolean;
+  readonly buildTags: readonly string[];
+  readonly database: string;
+  readonly importedSeverity: ImportedVulnerabilitySeverity;
+}
+
+export interface HealthScanOptions {
+  readonly tidyEnabled: boolean;
+  readonly ttlMs: number;
+}
+
+interface PhaseOutcome<T> {
+  readonly value: T;
+  readonly error?: AnalysisError;
+}
+
+const NOT_RUN_VULNERABILITIES: VulnerabilityAnalysis = {
+  state: "not-run",
+  findings: [],
+  advisories: {},
+  errors: [],
+};
+
+function isCancellation(error: unknown): boolean {
+  return error instanceof Error && error.message === "Scan cancelled";
+}
+
+async function settlePhase<T>(signal: AbortSignal, run: () => Promise<T>, fallback: () => T): Promise<PhaseOutcome<T>> {
+  try {
+    return { value: await run() };
+  } catch (error) {
+    if (signal.aborted || isCancellation(error)) throw error;
+    return {
+      value: fallback(),
+      error: {
+        code: classifyAnalysisError(error),
+        message: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+}
+
+function failedTidyFallback(message: string): TidyAnalysis {
+  return { state: "failed", consistent: false, errors: [{ code: "unknown", message }] };
+}
+
+function failedToolchainFallback(message: string): ToolchainAnalysis {
+  return { state: "failed", errors: [{ code: "unknown", message }] };
 }
 
 export class ModuleScanner {
@@ -27,12 +90,15 @@ export class ModuleScanner {
     private readonly ttlMs: number,
     private readonly logger?: Logger,
     private readonly vulnerability?: VulnerabilityScanOptions,
+    private readonly health?: HealthScanOptions,
   ) {}
 
-  public async scan(module: ModuleContext, signal: AbortSignal): Promise<ModuleAnalysisSnapshot> {
+  public async scan(
+    module: ModuleContext,
+    signal: AbortSignal,
+    trigger: ScanTrigger = "background",
+  ): Promise<ModuleAnalysisSnapshot> {
     const startTime = Date.now();
-    let isHit: boolean;
-    let contentHash: string;
     try {
       const [goMod, goSum, goWork] = await Promise.all([
         readFile(module.goModPath, "utf8"),
@@ -40,7 +106,8 @@ export class ModuleScanner {
         module.goWorkPath ? readFile(module.goWorkPath, "utf8").catch(() => "") : Promise.resolve(""),
         getGoVersion(this.goExecutable).catch(() => ""),
       ]);
-      contentHash = createCacheKey({
+      const tidyEligible = (this.health?.tidyEnabled ?? false) && trigger !== "background";
+      const contentHash = createCacheKey({
         moduleRoot: module.moduleRoot,
         goMod,
         goSum,
@@ -51,10 +118,22 @@ export class ModuleScanner {
           enabled: this.vulnerability.enabled,
           govulncheckPath: this.vulnerability.govulncheckPath,
           timeoutMs: this.vulnerability.timeoutMs,
+          includeTests: this.vulnerability.includeTests,
+          buildTags: [...this.vulnerability.buildTags],
+          database: this.vulnerability.database,
+          importedSeverity: this.vulnerability.importedSeverity,
         },
+        tidy: { enabled: this.health?.tidyEnabled ?? false, eligible: tidyEligible },
       });
       const cached = await this.cache.get(contentHash);
-      isHit = !!(cached && Date.now() - Date.parse(cached.createdAt) <= this.ttlMs);
+      const now = Date.now();
+      const cachedAgeMs = cached ? now - Date.parse(cached.createdAt) : Number.POSITIVE_INFINITY;
+      const reuseUpdates = cachedAgeMs <= this.ttlMs;
+      const reuseVulnerabilities = !!cached && cachedAgeMs <= (this.vulnerability?.ttlMs ?? Number.POSITIVE_INFINITY);
+      const tidyAgeMs =
+        cached?.tidy?.scannedAt !== undefined ? now - Date.parse(cached.tidy.scannedAt) : Number.POSITIVE_INFINITY;
+      const reuseTidy = !!cached?.tidy && tidyAgeMs <= (this.health?.ttlMs ?? Number.POSITIVE_INFINITY);
+      const isHit = reuseUpdates && reuseVulnerabilities && (!tidyEligible || reuseTidy);
 
       // Compromise: scan.started is emitted after cache lookup so it can include the cache hit/miss status,
       // but before any actual update analysis/subprocess execution begins.
@@ -71,43 +150,115 @@ export class ModuleScanner {
             outcome: "success",
             durationMs: Date.now() - startTime,
             cache: "hit",
-            dependencies: cached!.dependencies.length,
+            dependencies: cached.dependencies.length,
           });
         }
-        return cached!;
+        return cached;
       }
 
       const parsed = parseGoModPositions(goMod);
-      if (this.logger && typeof this.logger.command === "function") {
+      if (!reuseUpdates && this.logger && typeof this.logger.command === "function") {
         this.logger.command(this.goExecutable, buildGoListArgs(parsed.requirements), module.moduleRoot);
       }
-      const [rawDependencies, replacements, vulnerabilities] = await Promise.all([
-        analyzeUpdates({
-          module,
-          requirements: parsed.requirements,
-          goExecutable: this.goExecutable,
-          timeoutMs: this.timeoutMs,
-          signal,
-        }),
-        analyzeReplacements(module.moduleRoot, parsed.replacements),
-        this.analyzeVulnerabilities(module.moduleRoot, signal),
-      ]);
+
+      const [updatesOutcome, replacementsOutcome, vulnerabilitiesOutcome, tidyOutcome, toolchainOutcome] =
+        await Promise.all([
+          reuseUpdates
+            ? undefined
+            : settlePhase(
+                signal,
+                () =>
+                  analyzeUpdates({
+                    module,
+                    requirements: parsed.requirements,
+                    goExecutable: this.goExecutable,
+                    timeoutMs: this.timeoutMs,
+                    signal,
+                  }),
+                (): readonly DependencyStatus[] => [],
+              ),
+          reuseUpdates
+            ? undefined
+            : settlePhase(
+                signal,
+                () => analyzeReplacements(module.moduleRoot, parsed.replacements),
+                (): readonly ReplacementStatus[] => [],
+              ),
+          reuseVulnerabilities
+            ? undefined
+            : settlePhase(
+                signal,
+                () => this.analyzeVulnerabilities(module.moduleRoot, signal),
+                (): VulnerabilityAnalysis => NOT_RUN_VULNERABILITIES,
+              ),
+          tidyEligible && !reuseTidy
+            ? settlePhase(
+                signal,
+                () =>
+                  analyzeTidy({
+                    module,
+                    goExecutable: this.goExecutable,
+                    timeoutMs: this.timeoutMs,
+                    signal,
+                  }),
+                () => failedTidyFallback("go mod tidy -diff could not be completed because the analysis phase failed."),
+              )
+            : undefined,
+          settlePhase(
+            signal,
+            () =>
+              analyzeToolchain({
+                module,
+                goExecutable: this.goExecutable,
+                timeoutMs: this.timeoutMs,
+                ...(parsed.go ? { required: parsed.go.version } : {}),
+                ...(parsed.toolchain ? { suggested: parsed.toolchain.version } : {}),
+                signal,
+              }),
+            () => failedToolchainFallback("go env GOVERSION GOWORK could not be completed."),
+          ),
+        ]);
+
+      const dependencies = reuseUpdates
+        ? cached!.dependencies
+        : attachReplacementStatuses(updatesOutcome!.value, replacementsOutcome!.value);
+      const replacements = reuseUpdates ? cached!.replacements : replacementsOutcome!.value;
+      const vulnerabilities = reuseVulnerabilities ? cached.vulnerabilities : vulnerabilitiesOutcome!.value;
+      const tidy =
+        tidyEligible && !reuseTidy ? tidyOutcome!.value : cached?.tidy && tidyEligible ? cached.tidy : undefined;
+
+      const phaseErrors = [
+        reuseUpdates || !updatesOutcome ? undefined : updatesOutcome.error,
+        reuseUpdates || !replacementsOutcome ? undefined : replacementsOutcome.error,
+        reuseVulnerabilities || !vulnerabilitiesOutcome ? undefined : vulnerabilitiesOutcome.error,
+        !tidyOutcome ? undefined : tidyOutcome.error,
+        toolchainOutcome.error,
+      ].filter((error): error is AnalysisError => error !== undefined);
+
+      for (const error of phaseErrors) {
+        if (this.logger && typeof this.logger.event === "function") {
+          this.logger.event("warn", "scan.phase.failed", { code: error.code, message: error.message });
+        }
+      }
+
       const snapshot: ModuleAnalysisSnapshot = {
         moduleId: module.id,
         contentHash,
         createdAt: new Date().toISOString(),
         stale: false,
-        updateState: "complete",
-        dependencies: attachReplacementStatuses(rawDependencies, replacements),
+        updateState: phaseErrors.length > 0 ? "partial" : "complete",
+        dependencies,
         replacements,
         vulnerabilities,
-        errors: [],
+        ...(tidy ? { tidy } : {}),
+        toolchain: toolchainOutcome.value,
+        errors: phaseErrors,
       };
       await this.cache.set(contentHash, snapshot);
 
       if (this.logger && typeof this.logger.event === "function") {
         this.logger.event("info", "scan.finished", {
-          outcome: "success",
+          outcome: phaseErrors.length > 0 ? "partial" : "success",
           durationMs: Date.now() - startTime,
           cache: "miss",
           dependencies: snapshot.dependencies.length,
@@ -116,7 +267,7 @@ export class ModuleScanner {
 
       return snapshot;
     } catch (err) {
-      if (signal.aborted || (err instanceof Error && err.message === "Scan cancelled")) {
+      if (signal.aborted || isCancellation(err)) {
         throw err;
       }
 
@@ -147,10 +298,10 @@ export class ModuleScanner {
     }
   }
 
-  private async analyzeVulnerabilities(moduleRoot: string, signal: AbortSignal) {
+  private async analyzeVulnerabilities(moduleRoot: string, signal: AbortSignal): Promise<VulnerabilityAnalysis> {
     const vulnerability = this.vulnerability;
     if (!vulnerability?.enabled) {
-      return { state: "not-run" as const, findings: [], advisories: {}, errors: [] };
+      return NOT_RUN_VULNERABILITIES;
     }
     return vulnerability.coordinator.run(() =>
       analyzeVulnerabilities({

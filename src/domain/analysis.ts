@@ -43,6 +43,8 @@ export interface DependencyStatus {
 
 export type AnalyzerState = "idle" | "running" | "complete" | "partial" | "failed" | "unavailable";
 
+export type ImportedVulnerabilitySeverity = "error" | "warning" | "information" | "none";
+
 export interface TidyAnalysis {
   readonly state: AnalyzerState;
   readonly consistent: boolean;
