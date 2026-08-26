@@ -69,6 +69,67 @@ suite("DependencyInlayHintsProvider & DependencyHoverProvider", () => {
     provider.dispose();
   });
 
+  test("prefers the reachable vulnerability label over update and lifecycle labels", async () => {
+    const document = await vscode.workspace.openTextDocument({
+      language: "go.mod",
+      content: "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.9.1\n",
+    });
+    const module: ModuleContext = {
+      id: "/workspace/app",
+      moduleRoot: "/workspace/app",
+      goModPath: document.uri.fsPath,
+    };
+    const snapshot: ModuleAnalysisSnapshot = {
+      moduleId: module.id,
+      contentHash: "fixture",
+      createdAt: new Date(0).toISOString(),
+      stale: false,
+      updateState: "complete",
+      dependencies: [
+        {
+          modulePath: "github.com/gin-gonic/gin",
+          installedVersion: "v1.9.1",
+          availableVersion: "v1.10.1",
+          updateKind: "minor",
+          deprecatedMessage: "use example.com/new",
+          retractionRationales: [],
+          errors: [],
+        },
+      ],
+      replacements: [],
+      vulnerabilities: {
+        state: "complete",
+        findings: [
+          {
+            osvId: "GO-2026-0001",
+            fixedVersion: "v1.9.2",
+            classification: "reachable",
+            trace: [{ module: "github.com/gin-gonic/gin", version: "v1.9.1" }],
+          },
+        ],
+        advisories: {},
+        errors: [],
+      },
+      errors: [],
+    };
+    const coordinator = { getSnapshot: () => snapshot } as Pick<ScanCoordinator, "getSnapshot"> as ScanCoordinator;
+    const cache = new GoModDocumentCache();
+    const provider = new DependencyInlayHintsProvider(
+      coordinator,
+      () => module,
+      () => undefined,
+      cache,
+    );
+
+    const hints = provider.provideInlayHints(document);
+
+    assert.equal(hints.length, 1);
+    const label = hints[0]?.label;
+    assert.ok(Array.isArray(label));
+    assert.equal(label[1]?.value, " 🛡 fixed in v1.9.2");
+    provider.dispose();
+  });
+
   test("does not add the terminal action without an available version", async () => {
     const document = await vscode.workspace.openTextDocument({
       language: "go.mod",

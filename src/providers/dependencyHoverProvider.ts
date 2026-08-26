@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import type { GoModDocumentCache } from "../parsers/goModDocumentCache";
 import type { ScanCoordinator } from "../orchestration/scanCoordinator";
 import type { ModuleContext } from "../domain/module";
+import { escapeMarkdown } from "./detailsContent";
 
 export class DependencyHoverProvider implements vscode.HoverProvider {
   public constructor(
@@ -66,8 +67,4 @@ export class DependencyHoverProvider implements vscode.HoverProvider {
     markdown.appendMarkdown("Suggested commands are not executed by this extension.");
     return new vscode.Hover(markdown);
   }
-}
-
-function escapeMarkdown(value: string): string {
-  return value.replace(/[\\`*_{}[\]()#+\-.!|>]/g, "\\$&");
 }

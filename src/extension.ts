@@ -8,65 +8,30 @@ import { DependencyHoverProvider } from "./providers/dependencyHoverProvider";
 import { DependencyInlayHintsProvider } from "./providers/dependencyInlayHintsProvider";
 import { StatusBarManager } from "./providers/statusBarManager";
 import { PREPARE_UPDATE_COMMAND_ID, TerminalUpdateManager } from "./providers/terminalUpdateManager";
+import { DetailsDocumentProvider, MODBEAR_DETAILS_SCHEME } from "./providers/detailsDocumentProvider";
+import {
+  createExplainDependencyHandler,
+  createOpenAdvisoryHandler,
+  createShowDetailsHandler,
+  createShowTidyDiffHandler,
+  requireTrustedWorkspace,
+  type DetailCommandContext,
+  type ExplainRunner,
+} from "./commands/detailsCommands";
 import { discoverModules, type ModuleDiscoveryResult } from "./discovery/moduleDiscovery";
 import { resolveActiveModule } from "./discovery/activeModuleResolver";
 import { readConfig } from "./config/config";
-import { mapUpdateDiagnostics } from "./diagnostics/updateDiagnosticMapper";
-import { mapReplacementDiagnostics } from "./diagnostics/replacementDiagnosticMapper";
+import { mergeHealthDiagnostics } from "./diagnostics/healthDiagnostics";
 import { GoModDocumentCache } from "./parsers/goModDocumentCache";
 import { getSnapshotMetrics } from "./domain/analysis";
-import type { DependencyStatus, ModuleAnalysisSnapshot } from "./domain/analysis";
 import type { ModuleContext } from "./domain/module";
 import { Logger } from "./logging/logger";
 import { resolveTool } from "./execution/toolResolver";
 import { ProcessExecutionError } from "./execution/processRunner";
 import { VulnerabilityCoordinator } from "./analyzers/vulnerabilityAnalyzer";
-
-import { mapVulnerabilityDiagnostics } from "./diagnostics/vulnerabilityDiagnosticMapper";
+import { explainDependency } from "./analyzers/whyAnalyzer";
 
 export { EXTENSION_ID };
-
-async function requireTrustedWorkspace(): Promise<boolean> {
-  if (vscode.workspace.isTrusted) return true;
-  await vscode.window.showWarningMessage("Trust this workspace before running ModBear workspace actions.");
-  return false;
-}
-
-interface DependencyDetailsQuickPickItem extends vscode.QuickPickItem {
-  readonly status: DependencyStatus;
-}
-
-function countModuleVulnerabilities(snapshot: ModuleAnalysisSnapshot, modulePath: string): number {
-  return new Set(
-    snapshot.vulnerabilities.findings
-      .filter((finding) => finding.trace.some((frame) => frame.module === modulePath))
-      .map((finding) => finding.osvId),
-  ).size;
-}
-
-function formatDependencyDetail(status: DependencyStatus, vulnerabilityCount: number): string | undefined {
-  const parts: string[] = [];
-  if (status.deprecatedMessage) {
-    parts.push(`Deprecated: ${status.deprecatedMessage}`);
-  }
-  if (status.retractionRationales.length > 0) {
-    parts.push(`Retracted (${status.retractionRationales.length})`);
-  }
-  if (vulnerabilityCount > 0) {
-    parts.push(`${vulnerabilityCount} ${vulnerabilityCount === 1 ? "vulnerability" : "vulnerabilities"}`);
-  }
-  return parts.length > 0 ? parts.join(" · ") : undefined;
-}
-
-function buildDependencyQuickPickItems(snapshot: ModuleAnalysisSnapshot): DependencyDetailsQuickPickItem[] {
-  return snapshot.dependencies.map((status) => {
-    const detail = formatDependencyDetail(status, countModuleVulnerabilities(snapshot, status.modulePath));
-    const base = { label: status.modulePath, ...(detail ? { detail } : {}), status };
-    if (!status.availableVersion) return base;
-    const kind = status.updateKind ?? "unknown";
-    return { ...base, description: `${status.installedVersion} → ${status.availableVersion} (${kind})` };
-  });
-}
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const output = new Logger(() => readConfig().logLevel);
@@ -158,6 +123,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   };
 
   const documentCache = new GoModDocumentCache();
+  const detailsProvider = new DetailsDocumentProvider();
 
   const hoverProvider = new DependencyHoverProvider(coordinator, resolveModule, documentCache);
   const inlayProvider = new DependencyInlayHintsProvider(
@@ -174,6 +140,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     inlayProvider,
     statusBarManager,
     documentCache,
+    detailsProvider,
+    vscode.workspace.registerTextDocumentContentProvider(MODBEAR_DETAILS_SCHEME, detailsProvider),
     vscode.workspace.onDidCloseTextDocument((doc) => {
       documentCache.delete(doc.uri);
     }),
@@ -221,26 +189,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.workspace.openTextDocument(uri).then(
       (doc) => {
         const parsed = documentCache.get(doc);
-        const diagnostics: vscode.Diagnostic[] = [];
-        const config = readConfig(doc.uri);
-
-        const dependenciesByPath = new Map(snapshot.dependencies.map((status) => [status.modulePath, status]));
-        for (const req of parsed.requirements) {
-          const status = dependenciesByPath.get(req.modulePath);
-          if (status) {
-            diagnostics.push(...mapUpdateDiagnostics(req, status, config.updateSeverity));
-          }
-        }
-
-        for (const rep of parsed.replacements) {
-          const status = snapshot.replacements.find((r) => r.sourcePath === rep.oldPath);
-          if (status) {
-            diagnostics.push(...mapReplacementDiagnostics(rep, status));
-          }
-        }
-
-        diagnostics.push(...mapVulnerabilityDiagnostics(parsed.requirements, snapshot.vulnerabilities));
-
+        const diagnostics = mergeHealthDiagnostics(parsed, snapshot, readConfig(doc.uri).updateSeverity);
         diagnosticManager.set(doc.uri, diagnostics);
       },
       (err) => {
@@ -272,6 +221,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       triggerScan(doc, true);
     }),
   );
+
+  const detailCommandContext: DetailCommandContext = {
+    getActiveModule: () => {
+      const editor = vscode.window.activeTextEditor;
+      return editor ? resolveModule(editor.document.uri) : undefined;
+    },
+    getSnapshot: (moduleId) => coordinator.getSnapshot(moduleId),
+    detailsProvider,
+  };
+
+  const runExplanation: ExplainRunner = async (module, modulePath, signal) => {
+    const config = getConfig();
+    return explainDependency({
+      module,
+      modulePath,
+      signal,
+      goExecutable: await resolveTool(config.goPath, "go"),
+      timeoutMs: config.timeoutSeconds * 1000,
+    });
+  };
 
   context.subscriptions.push(
     vscode.commands.registerCommand(PREPARE_UPDATE_COMMAND_ID, async (input: unknown) => {
@@ -313,33 +282,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       output.info("Manual module scan triggered");
       await requestScan(module, "manual");
     }),
-    vscode.commands.registerCommand("modBear.showDetails", async () => {
-      if (!(await requireTrustedWorkspace())) return;
-      const editor = vscode.window.activeTextEditor;
-      const module = editor ? resolveModule(editor.document.uri) : undefined;
-      const snapshot = module ? coordinator.getSnapshot(module.id) : undefined;
-      if (!snapshot || snapshot.dependencies.length === 0) {
-        void vscode.window.showInformationMessage("ModBear: No dependency details available yet. Run a scan first.");
-        return;
-      }
-      const selected = await vscode.window.showQuickPick(buildDependencyQuickPickItems(snapshot), {
-        title: "ModBear: Dependency Details",
-        placeHolder: "Select a dependency",
-      });
-      if (!selected) return;
-      const { status } = selected;
-      if (!status.availableVersion) return;
-      const choice = await vscode.window.showInformationMessage(
-        `ModBear: Update ${status.modulePath} to ${status.availableVersion}?`,
-        "Copy update command",
-      );
-      if (choice === "Copy update command") {
-        await vscode.commands.executeCommand(
-          "modBear.copySuggestion",
-          `go get ${status.modulePath}@${status.availableVersion}`,
-        );
-      }
-    }),
+    vscode.commands.registerCommand("modBear.showDetails", createShowDetailsHandler(detailCommandContext)),
+    vscode.commands.registerCommand(
+      "modBear.explainDependency",
+      createExplainDependencyHandler(detailCommandContext, runExplanation),
+    ),
+    vscode.commands.registerCommand("modBear.openAdvisory", createOpenAdvisoryHandler(detailCommandContext)),
+    vscode.commands.registerCommand("modBear.showTidyDiff", createShowTidyDiffHandler(detailCommandContext)),
     vscode.commands.registerCommand("modBear.showOutput", () => {
       output.show();
     }),

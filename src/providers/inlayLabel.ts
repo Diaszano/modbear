@@ -1,6 +1,16 @@
 import type { DependencyStatus } from "../domain/analysis";
+import type { VulnerabilityFinding } from "../domain/vulnerability";
 
-export function buildInlayLabel(status: DependencyStatus, showKind: boolean): string | undefined {
+export function buildInlayLabel(
+  status: DependencyStatus,
+  showKind: boolean,
+  findings: readonly VulnerabilityFinding[] = [],
+): string | undefined {
+  const reachable = findings.filter((finding) => finding.classification === "reachable");
+  if (reachable.length > 0) {
+    const withFix = reachable.find((finding) => finding.fixedVersion);
+    return withFix ? `🛡 fixed in ${withFix.fixedVersion}` : "🛡 vulnerable · no fix";
+  }
   if (status.retractionRationales.length > 0) {
     return status.availableVersion ? `⚠ retracted · → ${status.availableVersion}` : "⚠ retracted";
   }

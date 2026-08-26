@@ -12,9 +12,10 @@ export class DetailsDocumentProvider implements vscode.TextDocumentContentProvid
   private readonly documents = new Map<string, string>();
 
   public set(kind: string, id: string, content: string): vscode.Uri {
-    const key = `/${encodeURIComponent(kind)}/${encodeURIComponent(id)}.md`;
-    this.documents.set(key, `${READ_ONLY_NOTICE}\n\n${content}`);
-    return vscode.Uri.parse(`${MODBEAR_DETAILS_SCHEME}:${key}`);
+    const path = `/${encodeURIComponent(kind)}/${encodeURIComponent(id)}.md`;
+    const uri = vscode.Uri.parse(`${MODBEAR_DETAILS_SCHEME}:${path}`);
+    this.documents.set(uri.path, `${READ_ONLY_NOTICE}\n\n${content}`);
+    return uri;
   }
 
   public provideTextDocumentContent(uri: vscode.Uri): string {
