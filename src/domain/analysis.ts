@@ -51,6 +51,15 @@ export interface TidyAnalysis {
   readonly scannedAt?: string;
 }
 
+export interface ToolchainAnalysis {
+  readonly state: AnalyzerState;
+  readonly installed?: string;
+  readonly required?: string;
+  readonly suggested?: string;
+  readonly errors: readonly AnalysisError[];
+  readonly scannedAt?: string;
+}
+
 export interface ModuleAnalysisSnapshot {
   readonly moduleId: string;
   readonly contentHash: string;
@@ -61,6 +70,7 @@ export interface ModuleAnalysisSnapshot {
   readonly replacements: readonly ReplacementStatus[];
   readonly vulnerabilities: VulnerabilityAnalysis;
   readonly tidy?: TidyAnalysis;
+  readonly toolchain?: ToolchainAnalysis;
   readonly errors: readonly AnalysisError[];
 }
 
