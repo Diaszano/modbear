@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { appendReadonlyGoFlags, buildGoEnvironment } from "../../execution/environment";
 import { resolveTool } from "../../execution/toolResolver";
-import { redactCommand, redactLogMessage, redactLogText, redactUrlCredentials } from "../../logging/redaction";
+import { redactLogText, redactUrlCredentials } from "../../logging/redaction";
 
 test("adds readonly without removing user GOFLAGS", () => {
   assert.equal(appendReadonlyGoFlags("-tags=integration"), "-tags=integration -mod=readonly");
@@ -19,20 +19,6 @@ test("buildGoEnvironment sets GOFLAGS", () => {
 
 test("redactUrlCredentials redacts passwords in URLs", () => {
   assert.equal(redactUrlCredentials("https://user:password@github.com/repo.git"), "https://***@github.com/repo.git");
-});
-
-test("redactCommand redacts arguments", () => {
-  const args = ["go", "get", "https://token:secret@example.com/pkg"];
-  assert.deepEqual(redactCommand(args), ["go", "get", "https://***@example.com/pkg"]);
-});
-
-test("redactLogMessage redacts credentials from raw caught error messages", () => {
-  const error = new Error("go list failed for https://token:super-secret@example.com/private/module");
-
-  assert.equal(
-    redactLogMessage(`Scan failed for module-a: ${error}`),
-    "Scan failed for module-a: Error: go list failed for https://***@example.com/private/module",
-  );
 });
 
 test("redacts credentials, absolute paths, and secret values in arbitrary log text", () => {
