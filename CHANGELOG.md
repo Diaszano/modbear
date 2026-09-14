@@ -1,3 +1,5 @@
+## [1.0.0-dev.2](https://github.com/Diaszano/modbear/compare/v1.0.0-dev.1...v1.0.0-dev.2) (2026-09-14)
+
 ## 1.0.0 (2026-07-25)
 
 ## 1.0.0-dev.1 (2026-07-25)
