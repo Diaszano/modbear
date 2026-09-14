@@ -16,8 +16,7 @@ import {
   type DetailCommandContext,
   type ExplainRunner,
 } from "./commands/detailsCommands";
-import { discoverModules, type ModuleDiscoveryResult } from "./discovery/moduleDiscovery";
-import { resolveActiveModule } from "./discovery/activeModuleResolver";
+import { discoverModules, resolveActiveModule, type ModuleDiscoveryResult } from "./discovery/moduleDiscovery";
 import { readConfig } from "./config/config";
 import { mergeHealthDiagnostics } from "./diagnostics/healthDiagnostics";
 import { GoModDocumentCache } from "./parsers/goModDocumentCache";
