@@ -77,36 +77,50 @@ function parseConfig(value: unknown, lineNumber: number): GovulncheckConfig {
   const version = /^v(\d+)(?:\.|$)/.exec(protocolVersion);
   if (version?.[1] !== "1") throw new Error(`Unsupported govulncheck protocol ${protocolVersion}`);
 
+  const scannerName = optionalString(config, "scanner_name", lineNumber, "config");
+  const scannerVersion = optionalString(config, "scanner_version", lineNumber, "config");
+  const database = optionalString(config, "db", lineNumber, "config");
+  const databaseLastModified = optionalString(config, "db_last_modified", lineNumber, "config");
+  const goVersion = optionalString(config, "go_version", lineNumber, "config");
+  const scanLevel = optionalString(config, "scan_level", lineNumber, "config");
+  const scanMode = optionalString(config, "scan_mode", lineNumber, "config");
+
   return Object.freeze({
     protocolVersion,
-    ...optionalStringProperty(config, "scanner_name", "scannerName", lineNumber, "config"),
-    ...optionalStringProperty(config, "scanner_version", "scannerVersion", lineNumber, "config"),
-    ...optionalStringProperty(config, "db", "database", lineNumber, "config"),
-    ...optionalStringProperty(config, "db_last_modified", "databaseLastModified", lineNumber, "config"),
-    ...optionalStringProperty(config, "go_version", "goVersion", lineNumber, "config"),
-    ...optionalStringProperty(config, "scan_level", "scanLevel", lineNumber, "config"),
-    ...optionalStringProperty(config, "scan_mode", "scanMode", lineNumber, "config"),
+    ...(scannerName !== undefined ? { scannerName } : {}),
+    ...(scannerVersion !== undefined ? { scannerVersion } : {}),
+    ...(database !== undefined ? { database } : {}),
+    ...(databaseLastModified !== undefined ? { databaseLastModified } : {}),
+    ...(goVersion !== undefined ? { goVersion } : {}),
+    ...(scanLevel !== undefined ? { scanLevel } : {}),
+    ...(scanMode !== undefined ? { scanMode } : {}),
   });
 }
 
 function parseProgress(value: unknown, lineNumber: number): GovulncheckProgress {
   const progress = record(value, lineNumber, "progress");
+  const timestamp = optionalString(progress, "time", lineNumber, "progress");
+  const message = optionalString(progress, "message", lineNumber, "progress");
   return Object.freeze({
-    ...optionalStringProperty(progress, "time", "timestamp", lineNumber, "progress"),
-    ...optionalStringProperty(progress, "message", "message", lineNumber, "progress"),
+    ...(timestamp !== undefined ? { timestamp } : {}),
+    ...(message !== undefined ? { message } : {}),
   });
 }
 
 function parseAdvisory(value: unknown, lineNumber: number): GovulncheckAdvisory {
   const advisory = record(value, lineNumber, "osv");
+  const summary = optionalString(advisory, "summary", lineNumber, "osv");
+  const details = optionalString(advisory, "details", lineNumber, "osv");
   const aliases = optionalStringArray(advisory, "aliases", lineNumber, "osv");
+  const published = optionalString(advisory, "published", lineNumber, "osv");
+  const modified = optionalString(advisory, "modified", lineNumber, "osv");
   return Object.freeze({
     id: requiredString(advisory, "id", lineNumber, "osv"),
-    ...optionalStringProperty(advisory, "summary", "summary", lineNumber, "osv"),
-    ...optionalStringProperty(advisory, "details", "details", lineNumber, "osv"),
-    ...(aliases === undefined ? {} : { aliases: Object.freeze(aliases) }),
-    ...optionalStringProperty(advisory, "published", "published", lineNumber, "osv"),
-    ...optionalStringProperty(advisory, "modified", "modified", lineNumber, "osv"),
+    ...(summary !== undefined ? { summary } : {}),
+    ...(details !== undefined ? { details } : {}),
+    ...(aliases !== undefined ? { aliases: Object.freeze(aliases) } : {}),
+    ...(published !== undefined ? { published } : {}),
+    ...(modified !== undefined ? { modified } : {}),
   });
 }
 
@@ -119,31 +133,39 @@ function parseFinding(value: unknown, lineNumber: number): GovulncheckFinding {
   const fixedVersion = optionalString(finding, "fixed_version", lineNumber, "finding");
   return Object.freeze({
     osvId: requiredString(finding, "osv", lineNumber, "finding"),
-    ...(fixedVersion === undefined ? {} : { fixedVersion }),
+    ...(fixedVersion !== undefined ? { fixedVersion } : {}),
     trace: Object.freeze(trace),
   });
 }
 
 function parseTraceFrame(value: unknown, lineNumber: number): GovulncheckTraceFrame {
   const frame = record(value, lineNumber, "finding.trace frame");
+  const version = optionalString(frame, "version", lineNumber, "finding.trace frame");
+  const pkg = optionalString(frame, "package", lineNumber, "finding.trace frame");
+  const fn = optionalString(frame, "function", lineNumber, "finding.trace frame");
+  const receiver = optionalString(frame, "receiver", lineNumber, "finding.trace frame");
   const position = frame.position === undefined ? undefined : parsePosition(frame.position, lineNumber);
   return Object.freeze({
     module: requiredString(frame, "module", lineNumber, "finding.trace frame"),
-    ...optionalStringProperty(frame, "version", "version", lineNumber, "finding.trace frame"),
-    ...optionalStringProperty(frame, "package", "package", lineNumber, "finding.trace frame"),
-    ...optionalStringProperty(frame, "function", "function", lineNumber, "finding.trace frame"),
-    ...optionalStringProperty(frame, "receiver", "receiver", lineNumber, "finding.trace frame"),
-    ...(position === undefined ? {} : { position }),
+    ...(version !== undefined ? { version } : {}),
+    ...(pkg !== undefined ? { package: pkg } : {}),
+    ...(fn !== undefined ? { function: fn } : {}),
+    ...(receiver !== undefined ? { receiver } : {}),
+    ...(position !== undefined ? { position } : {}),
   });
 }
 
 function parsePosition(value: unknown, lineNumber: number): GovulncheckPosition {
   const position = record(value, lineNumber, "finding.trace position");
+  const filename = optionalString(position, "filename", lineNumber, "finding.trace position");
+  const offset = optionalNumber(position, "offset", lineNumber, "finding.trace position");
+  const line = optionalNumber(position, "line", lineNumber, "finding.trace position");
+  const column = optionalNumber(position, "column", lineNumber, "finding.trace position");
   return Object.freeze({
-    ...optionalStringProperty(position, "filename", "filename", lineNumber, "finding.trace position"),
-    ...optionalNumberProperty(position, "offset", lineNumber, "finding.trace position"),
-    ...optionalNumberProperty(position, "line", lineNumber, "finding.trace position"),
-    ...optionalNumberProperty(position, "column", lineNumber, "finding.trace position"),
+    ...(filename !== undefined ? { filename } : {}),
+    ...(offset !== undefined ? { offset } : {}),
+    ...(line !== undefined ? { line } : {}),
+    ...(column !== undefined ? { column } : {}),
   });
 }
 
@@ -170,6 +192,13 @@ function optionalString(value: JsonRecord, name: string, lineNumber: number, lab
   return parsed;
 }
 
+function optionalNumber(value: JsonRecord, name: string, lineNumber: number, label: string): number | undefined {
+  const parsed = value[name];
+  if (parsed === undefined) return undefined;
+  if (typeof parsed !== "number") throw invalid(lineNumber, `${label}.${name} must be a number`);
+  return parsed;
+}
+
 function optionalStringArray(value: JsonRecord, name: string, lineNumber: number, label: string): string[] | undefined {
   const parsed = value[name];
   if (parsed === undefined) return undefined;
@@ -177,29 +206,6 @@ function optionalStringArray(value: JsonRecord, name: string, lineNumber: number
     throw invalid(lineNumber, `${label}.${name} must be an array of strings`);
   }
   return [...parsed];
-}
-
-function optionalStringProperty(
-  value: JsonRecord,
-  inputName: string,
-  outputName: string,
-  lineNumber: number,
-  label: string,
-): Readonly<Record<string, string>> {
-  const parsed = optionalString(value, inputName, lineNumber, label);
-  return parsed === undefined ? {} : { [outputName]: parsed };
-}
-
-function optionalNumberProperty(
-  value: JsonRecord,
-  name: string,
-  lineNumber: number,
-  label: string,
-): Readonly<Record<string, number>> {
-  const parsed = value[name];
-  if (parsed === undefined) return {};
-  if (typeof parsed !== "number") throw invalid(lineNumber, `${label}.${name} must be a number`);
-  return { [name]: parsed };
 }
 
 function isRecord(value: unknown): value is JsonRecord {
