@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { EXTENSION_ID } from "./metadata";
 import { DiagnosticManager } from "./diagnostics/diagnosticManager";
 import { AnalysisCache } from "./cache/analysisCache";
 import { ScanCoordinator } from "./orchestration/scanCoordinator";
@@ -31,7 +30,7 @@ import { ProcessExecutionError } from "./execution/processRunner";
 import { VulnerabilityCoordinator } from "./analyzers/vulnerabilityAnalyzer";
 import { explainDependency } from "./analyzers/whyAnalyzer";
 
-export { EXTENSION_ID };
+export const EXTENSION_ID = "diaszano.modbear";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const output = new Logger(() => readConfig().logLevel);
