@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { classifyTidyResult } from "../../parsers/tidyDiffParser";
+import { classifyTidyResult } from "../../analyzers/tidyAnalyzer";
 
 const unifiedDiff = "diff current/go.mod tidy/go.mod\n--- current/go.mod\n+++ tidy/go.mod\n@@ -1 +1 @@\n";
 

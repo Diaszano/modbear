@@ -7,9 +7,18 @@ import {
 import type { ModuleContext } from "../domain/module";
 import { buildGoEnvironment } from "../execution/environment";
 import { ProcessExecutionError, runProcess, type ProcessResult } from "../execution/processRunner";
-import { classifyTidyResult, type TidyCommandResult } from "../parsers/tidyDiffParser";
+export type TidyCommandResult =
+  | { readonly kind: "clean" }
+  | { readonly kind: "diff"; readonly diff: string }
+  | { readonly kind: "error"; readonly message: string };
 
-export { classifyTidyResult, type TidyCommandResult } from "../parsers/tidyDiffParser";
+export function classifyTidyResult(exitCode: number | null, stdout: string, stderr: string): TidyCommandResult {
+  const trimmed = stdout.trim();
+  if (trimmed.startsWith("diff ") && trimmed.includes("\n--- ") && trimmed.includes("\n+++ "))
+    return { kind: "diff", diff: stdout };
+  if (exitCode === 0 && !trimmed && !stderr.trim()) return { kind: "clean" };
+  return { kind: "error", message: stderr.trim() || trimmed || `go mod tidy -diff exited ${exitCode}` };
+}
 
 export function buildTidyArgs(): readonly string[] {
   return ["mod", "tidy", "-diff"];
