@@ -1,8 +1,32 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import test from "node:test";
 import type { DependencyStatus } from "../../domain/analysis";
 import type { VulnerabilityFinding } from "../../domain/vulnerability";
-import { buildInlayLabel } from "../../providers/dependencyInlayHintsProvider";
+
+const nodeRequire = createRequire(__filename);
+const moduleLoader = nodeRequire("node:module") as {
+  _load: (request: string, parent: unknown, isMain: boolean) => unknown;
+};
+const originalLoad = moduleLoader._load;
+moduleLoader._load = function (request, parent, isMain) {
+  if (request === "vscode") {
+    return {
+      EventEmitter: class {},
+      InlayHint: class {},
+      InlayHintKind: { Type: 1 },
+      InlayHintLabelPart: class {},
+      MarkdownString: class {},
+      Position: class {},
+      workspace: {},
+    };
+  }
+  return originalLoad.call(this, request, parent, isMain);
+};
+
+const { buildInlayLabel } = nodeRequire(
+  "../../providers/dependencyInlayHintsProvider",
+) as typeof import("../../providers/dependencyInlayHintsProvider");
 
 function baseStatus(overrides: Partial<DependencyStatus> = {}): DependencyStatus {
   return {
