@@ -128,5 +128,6 @@ export class ScanCoordinator {
     this.queue.length = 0;
     for (const controller of this.running.values()) controller.abort();
     this.running.clear();
+    this.snapshotListeners.clear();
   }
 }

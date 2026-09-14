@@ -78,7 +78,7 @@ ModBear is built as an event-driven, decoupled VS Code extension. It provides av
 
 - **`DependencyInlayHintsProvider`**: Renders non-intrusive inlay hints (`→ v1.2.3 · minor`, `⚠ deprecated`, `⚠ retracted`) at line end positions without altering source text.
 - **`DependencyHoverProvider`**: Provides Markdown hover details showing installed versions, available updates, deprecation warnings, retraction rationales, suggested update commands, and active vulnerability advisories (or unavailable alerts).
-- **`DiagnosticManager`**: Publishes VS Code diagnostics to the Problems pane for deprecated, retracted, or vulnerable dependencies.
+- **`DiagnosticCollection`**: Publishes VS Code diagnostics to the Problems pane for deprecated, retracted, or vulnerable dependencies.
 
 ## Data Flow
 
@@ -87,4 +87,4 @@ ModBear is built as an event-driven, decoupled VS Code extension. It provides av
 3. **Cache Lookup**: `ScanCoordinator` checks `AnalysisCache`. If cached snapshot is valid, UI updates immediately.
 4. **Subprocess Execution**: If uncached or stale, `ModuleScanner` spawns `go list` and `govulncheck` in parallel with `GOFLAGS=-mod=readonly` (concurrency for vulnerability scans is restricted globally).
 5. **Parse & Map**: Output JSON streams are parsed, updates are classified, vulnerability findings are aggregated and classified (or marked unavailable), and snapshot is saved.
-6. **UI Refresh**: `ScanCoordinator` fires snapshot events, causing `InlayHintsProvider`, `HoverProvider` and `DiagnosticManager` to update editor overlays and publish problems.
+6. **UI Refresh**: `ScanCoordinator` fires snapshot events, causing `InlayHintsProvider`, `HoverProvider` and `DiagnosticCollection` to update editor overlays and publish problems.

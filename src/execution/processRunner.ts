@@ -171,4 +171,3 @@ export function requireSuccessfulExit(result: ProcessResult, command: string): P
     : `${command} exited with code ${result.exitCode ?? "unknown"}`;
   throw new ProcessExecutionError(detail, "exit-nonzero", undefined, result);
 }
-

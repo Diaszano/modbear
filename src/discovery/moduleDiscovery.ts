@@ -161,4 +161,3 @@ export function resolveActiveModule(
     )
     .sort((a, b) => b.moduleRoot.length - a.moduleRoot.length)[0];
 }
-
