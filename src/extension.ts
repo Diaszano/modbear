@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { DiagnosticManager } from "./diagnostics/diagnosticManager";
 import { AnalysisCache } from "./cache/analysisCache";
 import { ScanCoordinator } from "./orchestration/scanCoordinator";
 import { ModuleScanner, type ScanTrigger } from "./orchestration/moduleScanner";
@@ -34,7 +33,7 @@ export const EXTENSION_ID = "diaszano.modbear";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const output = new Logger(() => readConfig().logLevel);
-  const diagnosticManager = new DiagnosticManager();
+  const diagnosticCollection = vscode.languages.createDiagnosticCollection("modbear");
 
   const cachePath = context.globalStorageUri.fsPath;
   const cache = new AnalysisCache(cachePath);
@@ -134,7 +133,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push(
     output,
-    diagnosticManager,
+    diagnosticCollection,
     coordinator,
     inlayProvider,
     statusBarManager,
@@ -189,7 +188,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       (doc) => {
         const parsed = documentCache.get(doc);
         const diagnostics = mergeHealthDiagnostics(parsed, snapshot, readConfig(doc.uri).updateSeverity);
-        diagnosticManager.set(doc.uri, diagnostics);
+        diagnosticCollection.set(doc.uri, diagnostics);
       },
       (err) => {
         logFailure("diagnostics.open.failed", err);
