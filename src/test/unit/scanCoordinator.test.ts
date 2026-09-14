@@ -49,7 +49,7 @@ test("ScanCoordinator emits snapshot event when scan finishes", async () => {
   const coordinator = new ScanCoordinator();
   const received: ModuleAnalysisSnapshot[] = [];
 
-  const unsubscribe = coordinator.events.onSnapshot((s) => received.push(s));
+  const unsubscribe = coordinator.onSnapshot((s) => received.push(s));
 
   await coordinator.scanModule({
     module: dummyModule,
@@ -137,7 +137,7 @@ test("ScanCoordinator dispose aborts active scans", async () => {
 test("ScanCoordinator stores and emits fallback failed snapshot on non-abort error", async () => {
   const coordinator = new ScanCoordinator();
   const emitted: ModuleAnalysisSnapshot[] = [];
-  coordinator.events.onSnapshot((s) => emitted.push(s));
+  coordinator.onSnapshot((s) => emitted.push(s));
 
   const scanPromise = coordinator.scanModule({
     module: dummyModule,

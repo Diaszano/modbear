@@ -172,7 +172,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       });
   }
 
-  coordinator.events.onSnapshot((snapshot) => {
+  coordinator.onSnapshot((snapshot) => {
     statusBarManager.markScanFinished(snapshot.moduleId);
     inlayProvider.refresh();
 

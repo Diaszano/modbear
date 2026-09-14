@@ -1,6 +1,5 @@
 import { classifyAnalysisError, type ModuleAnalysisSnapshot } from "../domain/analysis";
 import type { ModuleContext } from "../domain/module";
-import { ScanEvents } from "./scanEvents";
 import type { Logger } from "../logging/logger";
 
 export interface ModuleScanRequest {
@@ -12,7 +11,16 @@ export interface ModuleScanRequest {
 export class ScanCoordinator {
   private readonly running = new Map<string, AbortController>();
   private readonly snapshots = new Map<string, ModuleAnalysisSnapshot>();
-  public readonly events = new ScanEvents();
+  private readonly snapshotListeners = new Set<(snapshot: ModuleAnalysisSnapshot) => void>();
+
+  public onSnapshot(listener: (snapshot: ModuleAnalysisSnapshot) => void): () => void {
+    this.snapshotListeners.add(listener);
+    return () => this.snapshotListeners.delete(listener);
+  }
+
+  private emitSnapshot(snapshot: ModuleAnalysisSnapshot): void {
+    for (const listener of this.snapshotListeners) listener(snapshot);
+  }
 
   private readonly queue: {
     request: ModuleScanRequest;
@@ -96,7 +104,7 @@ export class ScanCoordinator {
               errors: [{ code: classifyAnalysisError(err), message: "Dependency analysis failed." }],
             });
         this.snapshots.set(request.module.id, snapshot);
-        this.events.emitSnapshot(snapshot);
+        this.emitSnapshot(snapshot);
         throw err;
       }
 
@@ -105,7 +113,7 @@ export class ScanCoordinator {
         throw new Error("Scan cancelled");
       }
       this.snapshots.set(request.module.id, snapshot);
-      this.events.emitSnapshot(snapshot);
+      this.emitSnapshot(snapshot);
       return snapshot;
     } finally {
       if (this.running.get(request.module.id) === controller) this.running.delete(request.module.id);
