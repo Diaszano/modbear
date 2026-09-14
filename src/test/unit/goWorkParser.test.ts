@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseGoWorkUses } from "../../discovery/goWorkParser";
+import { parseGoWorkUses } from "../../discovery/moduleDiscovery";
 
 test("parses single and block use directives", () => {
   const text = `go 1.24\nuse ./one\nuse (\n  ./two\n  ../shared\n)\n`;

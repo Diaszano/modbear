@@ -1,7 +1,6 @@
 import { opendir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import type { ModuleContext } from "../domain/module";
-import { parseGoWorkUses } from "./goWorkParser";
 
 const EXCLUDED = new Set([".git", "vendor", "node_modules", "testdata", ".cache"]);
 const MAX_DIRECTORIES = 5_000;
@@ -126,4 +125,24 @@ export async function discoverModules(roots: readonly string[], signal: AbortSig
     modules: [...modules.values()].sort((a, b) => a.moduleRoot.localeCompare(b.moduleRoot)),
     errors,
   };
+}
+
+export function parseGoWorkUses(text: string): readonly string[] {
+  const uses: string[] = [];
+  let inBlock = false;
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.replace(/\/\/.*$/, "").trim();
+    if (!trimmed) continue;
+    if (/^use\s*\($/.test(trimmed)) {
+      inBlock = true;
+      continue;
+    }
+    if (inBlock && trimmed === ")") {
+      inBlock = false;
+      continue;
+    }
+    const match = inBlock ? /^("[^"]+"|\S+)$/.exec(trimmed) : /^use\s+("[^"]+"|\S+)$/.exec(trimmed);
+    if (match?.[1]) uses.push(match[1].replace(/^"|"$/g, ""));
+  }
+  return uses;
 }
