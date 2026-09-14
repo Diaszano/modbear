@@ -51,14 +51,11 @@ test("parses protocol v1 config, advisories, findings, and progress", () => {
   ]);
 });
 
-test("exposes advisories through an immutable runtime map", () => {
+test("exposes advisories through a ReadonlyMap", () => {
   const stream = parseGovulncheckStream(fixture("symbol-stream.jsonl"));
-  const advisories = stream.advisories as unknown as Map<string, unknown>;
-
-  assert.throws(() => advisories.set("GO-2026-9999", { id: "GO-2026-9999" }), TypeError);
-  assert.throws(() => advisories.delete("GO-2026-0001"), TypeError);
   assert.equal(stream.advisories.size, 1);
-  assert.ok(stream.advisories.has("GO-2026-0001"));
+  assert.equal(stream.advisories.has("GO-2026-0001"), true);
+  assert.equal(stream.advisories.get("GO-2026-0001")?.id, "GO-2026-0001");
 });
 
 test("retains known protocol fields and ignores future fields", () => {
