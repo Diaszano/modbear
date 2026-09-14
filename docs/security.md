@@ -43,7 +43,7 @@ All external tool invocations are executed via Node.js `child_process.execFile` 
 Log outputs (sent to VS Code Output Channels or diagnostic logs) are sanitized to prevent credential leaks or sensitive system exposure.
 
 - **URL Credentials**: URLs containing basic authentication credentials (e.g. `https://user:password@proxy.example.com`) are sanitized via `redactUrlCredentials` to mask secret tokens and passwords.
-- **Environment & Path Redaction**: Command lines and environment values displayed in logs redact user home directory paths, auth tokens, and private proxy headers via `redactCommand`.
+- **Environment & Path Redaction**: Command lines and environment values displayed in logs redact user home directory paths, auth tokens, and private proxy headers via `redactLogText`.
 
 ## 4. Workspace Trust Behavior
 

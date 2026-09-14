@@ -27,7 +27,7 @@
 - Consumes: None
 - Produces: Command definition for `modBear.showStatusBarMenu`
 
-- [ ] **Step 1: Modify `package.json` to register the new command**
+- [x] **Step 1: Modify `package.json` to register the new command**
 
   Add the command `modBear.showStatusBarMenu` to the `contributes.commands` array:
 
@@ -38,7 +38,7 @@
   }
   ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
   ```bash
   git add package.json
@@ -58,7 +58,7 @@
 - Consumes: `ScanCoordinator` and `ModuleContext` types.
 - Produces: `StatusBarManager` class with lifecycle management for status bar item.
 
-- [ ] **Step 1: Create `src/providers/statusBarManager.ts` with complete implementation**
+- [x] **Step 1: Create `src/providers/statusBarManager.ts` with complete implementation**
 
   Create [statusBarManager.ts](file:///home/diaszano/Documentos/Github/modbear/src/providers/statusBarManager.ts):
 
@@ -151,7 +151,7 @@
   }
   ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
   ```bash
   git add src/providers/statusBarManager.ts
@@ -171,7 +171,7 @@
 - Consumes: `StatusBarManager` from `src/providers/statusBarManager.ts`
 - Produces: Registration of `modBear.showStatusBarMenu` command, status bar lifecycle events hooks.
 
-- [ ] **Step 1: Add imports and update `activate` method in `src/extension.ts`**
+- [x] **Step 1: Add imports and update `activate` method in `src/extension.ts`**
 
   Import `StatusBarManager` and wire it up:
   - Inside `activate`, instantiate `StatusBarManager`.
@@ -303,7 +303,7 @@
   });
   ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
   ```bash
   git add src/extension.ts
@@ -323,7 +323,7 @@
 - Consumes: `StatusBarManager`, `ScanCoordinator`
 - Produces: Test verification for status bar behaviors.
 
-- [ ] **Step 1: Create `src/test/suite/statusBarManager.test.ts`**
+- [x] **Step 1: Create `src/test/suite/statusBarManager.test.ts`**
 
   Create [statusBarManager.test.ts](file:///home/diaszano/Documentos/Github/modbear/src/test/suite/statusBarManager.test.ts):
 
@@ -394,7 +394,7 @@
   });
   ```
 
-- [ ] **Step 2: Run extension tests to verify implementation**
+- [x] **Step 2: Run extension tests to verify implementation**
 
   Run command:
 
@@ -404,7 +404,7 @@
 
   Expected: All extension tests pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
   ```bash
   git add src/test/suite/statusBarManager.test.ts

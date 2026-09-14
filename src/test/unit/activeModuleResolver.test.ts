@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveActiveModule } from "../../discovery/activeModuleResolver";
+import { resolveActiveModule } from "../../discovery/moduleDiscovery";
 import type { ModuleContext } from "../../domain/module";
 
 test("resolves active module for document in module", () => {

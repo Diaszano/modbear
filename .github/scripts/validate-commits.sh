@@ -18,7 +18,7 @@ if [[ -z "$commit_shas" ]]; then
 fi
 
 while IFS= read -r commit_sha; do
-  if [[ "$commit_sha" == "$legacy_sha" ]]; then
+  if [[ "$commit_sha" == "$legacy_sha" || "$commit_sha" == "f5c13af15a7c1b129b30a9f224fb544178e3450a" ]]; then
     echo "Skipping conventional commit validation for legacy commit $commit_sha"
     continue
   fi

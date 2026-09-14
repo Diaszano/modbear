@@ -1,12 +1,11 @@
 import { createHash } from "node:crypto";
-import { getGoVersionSync } from "../execution/goToolIdentity";
 
 export function createCacheKey(input: Record<string, unknown>): string {
-  const goBin = (input.goExecutable as string | undefined) || (input.tool as string | undefined) || "go";
-  const goVersion = getGoVersionSync(goBin);
+  const { goVersion: rawGoVersion, ...restInput } = input;
+  const goVersion = (rawGoVersion as string | undefined) ?? "";
 
   const enrichedInput = {
-    ...input,
+    ...restInput,
     resolutionInputs: {
       GOFLAGS: process.env.GOFLAGS ?? "",
       GOPROXY: process.env.GOPROXY ?? "",

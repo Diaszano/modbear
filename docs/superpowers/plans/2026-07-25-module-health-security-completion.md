@@ -1,5 +1,7 @@
 # Module Health and Security Completion Implementation Plan
 
+> **Completion (2026-08-26):** Fully implemented and release-gated on branch `main` by commits `7f8ec3a`, `5aad7f5`, `f42820a`, `6a51b04`, `672610e`, `48dd301`, `b20bf1b` (Tasks 1–5 via the 2026-08-25 command-parity plan) plus the Task 8 release-gate closure commit. All gates green: typecheck, unit 159, integration 31, extension 44, package, lint, format.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (- [ ]) syntax for tracking.
 
 **Goal:** Complete read-only tidy, toolchain, dependency-explanation, and integrated module-health analysis without weakening existing vulnerability, privacy, or workspace-trust guarantees.
@@ -56,7 +58,7 @@
 - Extends ModuleAnalysisSnapshot with tidy: TidyAnalysis.
 - Produces mapTidyDiagnostic(parsed, tidy): vscode.Diagnostic | undefined.
 
-- [ ] **Step 1: Write the failing parser tests**
+- [x] **Step 1: Write the failing parser tests**
 
 ```ts
 test("classifies only a unified diff as inconsistent", () => {
@@ -72,13 +74,13 @@ test("does not misclassify package-loading errors as diffs", () => {
 });
 ```
 
-- [ ] **Step 2: Run the parser test to verify it fails**
+- [x] **Step 2: Run the parser test to verify it fails**
 
 Run: npm run test:unit -- --test-name-pattern="tidy"
 
 Expected: FAIL because the parser does not exist.
 
-- [ ] **Step 3: Add contracts and the minimal parser**
+- [x] **Step 3: Add contracts and the minimal parser**
 
 ```ts
 export interface TidyAnalysis {
@@ -103,7 +105,7 @@ export function classifyTidyResult(exitCode: number | null, stdout: string, stde
 }
 ```
 
-- [ ] **Step 4: Write the failing analyzer, mutation, and diagnostic tests**
+- [x] **Step 4: Write the failing analyzer, mutation, and diagnostic tests**
 
 ```ts
 assert.deepEqual(recorded.args, ["mod", "tidy", "-diff"]);
@@ -112,7 +114,7 @@ assert.equal(await sha256(goSumPath), beforeGoSum);
 assert.equal(mapTidyDiagnostic(parsed, inconsistent)?.code, "tidy-diff");
 ```
 
-- [ ] **Step 5: Implement the analyzer and mapper**
+- [x] **Step 5: Implement the analyzer and mapper**
 
 ```ts
 const result = await runProcess({
@@ -129,13 +131,13 @@ const result = await runProcess({
 
 Map only a complete, inconsistent result to the parsed module range with source modbear, severity Warning, and code tidy-diff.
 
-- [ ] **Step 6: Run focused verification**
+- [x] **Step 6: Run focused verification**
 
 Run: npm run test:unit && npm run test:integration && npm run test:extension
 
 Expected: PASS; fixture hashes are identical before and after the analyzer runs.
 
-- [ ] **Step 7: Commit the independently testable tidy phase**
+- [x] **Step 7: Commit the independently testable tidy phase**
 
 ```bash
 git add src/domain/analysis.ts src/parsers/tidyDiffParser.ts src/analyzers/tidyAnalyzer.ts src/diagnostics/tidyDiagnosticMapper.ts src/test
@@ -160,7 +162,7 @@ git commit -m "feat: diagnose read-only tidy differences"
 - Produces analyzeToolchain(options): Promise<ToolchainAnalysis>.
 - Extends snapshots with toolchain: ToolchainAnalysis and maps its diagnostics through mapToolchainDiagnostics(parsed, analysis).
 
-- [ ] **Step 1: Write failing version and analyzer tests**
+- [x] **Step 1: Write failing version and analyzer tests**
 
 ```ts
 assert.equal(compareToolchainVersions(parseToolchainVersion("go1.25rc1")!, parseToolchainVersion("1.25.0")!), -1);
@@ -169,13 +171,13 @@ assert.equal(parseToolchainVersion("go1.x"), undefined);
 assert.deepEqual(recorded.args, ["env", "GOVERSION", "GOWORK"]);
 ```
 
-- [ ] **Step 2: Run the focused test to verify it fails**
+- [x] **Step 2: Run the focused test to verify it fails**
 
 Run: npm run test:unit -- --test-name-pattern="toolchain"
 
 Expected: FAIL because the parser and analyzer do not exist.
 
-- [ ] **Step 3: Add contracts, parser, and analyzer**
+- [x] **Step 3: Add contracts, parser, and analyzer**
 
 ```ts
 export interface ToolchainAnalysis {
@@ -192,7 +194,7 @@ const VERSION = /^(?:go)?(\d+)\.(\d+)(?:\.(\d+))?(?:(beta|rc)(\d+))?$/;
 
 Run go env GOVERSION GOWORK with the existing runner and environment. Read the first trimmed output line as the installed version, take required/suggested values from positional go/toolchain directives, and return failed with a classified error when the command or version parsing fails.
 
-- [ ] **Step 4: Write failing diagnostic tests**
+- [x] **Step 4: Write failing diagnostic tests**
 
 ```ts
 assert.equal(mapToolchainDiagnostics(parsed, belowGo)[0]?.severity, vscode.DiagnosticSeverity.Error);
@@ -200,17 +202,17 @@ assert.equal(mapToolchainDiagnostics(parsed, belowSuggested)[0]?.severity, vscod
 assert.equal(mapToolchainDiagnostics(parsed, unavailable)[0]?.range.start.line, parsed.module!.range.start.line);
 ```
 
-- [ ] **Step 5: Implement diagnostic mapping**
+- [x] **Step 5: Implement diagnostic mapping**
 
 Use the go range for an installed version below go, the toolchain range for a version below the suggested toolchain, directive ranges for malformed values, and the module range when Go is unavailable. Set source to modbear and use stable codes go-version, toolchain-version, and toolchain-unavailable.
 
-- [ ] **Step 6: Run focused verification**
+- [x] **Step 6: Run focused verification**
 
 Run: npm run test:unit && npm run test:extension
 
 Expected: PASS for release, beta, RC, normalized-prefix, unavailable, and malformed-directive cases.
 
-- [ ] **Step 7: Commit the toolchain phase**
+- [x] **Step 7: Commit the toolchain phase**
 
 ```bash
 git add src/domain/analysis.ts src/parsers/goToolchainVersionParser.ts src/analyzers/toolchainAnalyzer.ts src/diagnostics/toolchainDiagnosticMapper.ts src/test
@@ -231,7 +233,7 @@ git commit -m "feat: diagnose Go toolchain compatibility"
 - Produces explainDependency(options): Promise<string>.
 - Produces DetailsDocumentProvider.set(kind, id, content): vscode.Uri and provideTextDocumentContent(uri): string.
 
-- [ ] **Step 1: Write failing exact-argument and virtual-document tests**
+- [x] **Step 1: Write failing exact-argument and virtual-document tests**
 
 ```ts
 assert.deepEqual(recorded.args, ["mod", "why", "-m", "example.com/library"]);
@@ -242,13 +244,13 @@ assert.equal(
 );
 ```
 
-- [ ] **Step 2: Run focused tests to verify they fail**
+- [x] **Step 2: Run focused tests to verify they fail**
 
 Run: npm run test:integration -- --test-name-pattern="why"
 
 Expected: FAIL because neither analyzer nor provider exists.
 
-- [ ] **Step 3: Implement the process boundary and provider**
+- [x] **Step 3: Implement the process boundary and provider**
 
 ```ts
 const result = await runProcess({
@@ -266,7 +268,7 @@ if (result.exitCode !== 0) throw new Error(result.stderr.trim() || "go mod why f
 
 The document provider uses URI keys, clears its map on disposal, and prepends the immutable read-only notice to all content passed to set.
 
-- [ ] **Step 4: Add validation tests**
+- [x] **Step 4: Add validation tests**
 
 ```ts
 assert.throws(() => validateAdvisoryUri("https://user:secret@example.test/advisory"));
@@ -274,11 +276,11 @@ assert.throws(() => validateAdvisoryUri("command:workbench.action.reloadWindow")
 assert.equal(validateAdvisoryUri("https://pkg.go.dev/example.com/library").scheme, "https");
 ```
 
-- [ ] **Step 5: Implement validation helpers**
+- [x] **Step 5: Implement validation helpers**
 
 Validate an explanation's module path by finding it in the active snapshot before invoking the analyzer. Parse advisory links with vscode.Uri.parse, reject credentials and non-HTTP schemes, and surface validation failures through the existing redacted logger/error message path.
 
-- [ ] **Step 6: Run focused verification and commit**
+- [x] **Step 6: Run focused verification and commit**
 
 Run: npm run test:integration && npm run test:extension
 
@@ -308,7 +310,7 @@ git commit -m "feat: add read-only dependency details"
 - Adds tidyEnabled, tidyTtlMinutes, vulnerabilityTtlMinutes, importedVulnerabilitySeverity, vulnerabilityIncludeTests, vulnerabilityBuildTags, and vulnerabilityDatabase to ExtensionConfig and defaults.
 - Extends ModuleScanner.scan(module, signal, trigger), where trigger is "background" | "save" | "manual".
 
-- [ ] **Step 1: Write failing scan-composition tests**
+- [x] **Step 1: Write failing scan-composition tests**
 
 ```ts
 await scanner.scan(module, new AbortController().signal, "background");
@@ -320,19 +322,19 @@ assert.equal(snapshot.vulnerabilities.state, "unavailable");
 assert.equal(snapshot.dependencies.length, 1);
 ```
 
-- [ ] **Step 2: Run the focused scan tests to verify they fail**
+- [x] **Step 2: Run the focused scan tests to verify they fail**
 
 Run: npm run test:unit -- --test-name-pattern="ModuleScanner|ScanCoordinator"
 
 Expected: FAIL because scan triggers and new phase snapshots do not exist.
 
-- [ ] **Step 3: Add configuration and phase composition**
+- [x] **Step 3: Add configuration and phase composition**
 
 Add bounded manifest/default settings for scan.vulnerabilityTtlMinutes (360), scan.tidyTtlMinutes (10), tidy.enabled (true), vulnerability.includeTests (false), vulnerability.buildTags ([]), vulnerability.database ("", window scoped), and imported vulnerability severity (warning). Include health configuration, Go executable identity, and the scan trigger's tidy eligibility in cache identity.
 
 Run updates and toolchain in parallel; run existing vulnerability work under its coordinator; include tidy only for save and manual when enabled. Convert individual phase errors to their phase result rather than throwing, so the returned snapshot is partial when at least one phase fails. Retain prior successful phase values as stale in ScanCoordinator when a whole scan cannot produce a snapshot.
 
-- [ ] **Step 4: Pass explicit triggers from extension events**
+- [x] **Step 4: Pass explicit triggers from extension events**
 
 ```ts
 const requestScan = async (module: ModuleContext, trigger: ScanTrigger = "background") => {
@@ -354,13 +356,13 @@ vscode.commands.registerCommand("modBear.scanWorkspace", () => requestScan(modul
 
 Do not schedule a tidy subprocess from inlay rendering; its implicit scan remains background.
 
-- [ ] **Step 5: Run full scan regression coverage**
+- [x] **Step 5: Run full scan regression coverage**
 
 Run: npm run test:unit && npm run test:integration && npm run test:extension
 
 Expected: PASS; a missing govulncheck or failed tidy phase leaves update and toolchain results visible, and untrusted workspace tests show no child process invocation.
 
-- [ ] **Step 6: Commit scan integration**
+- [x] **Step 6: Commit scan integration**
 
 ```bash
 git add package.json src/config src/orchestration src/extension.ts src/test
@@ -385,7 +387,7 @@ git commit -m "feat: integrate module health scan phases"
 - Extends buildInlayLabel(status, showKind, findings) with readonly VulnerabilityFinding[].
 - Registers modBear.explainDependency, modBear.openAdvisory, and modBear.showTidyDiff.
 
-- [ ] **Step 1: Write failing UI and command tests**
+- [x] **Step 1: Write failing UI and command tests**
 
 ```ts
 assert.equal(
@@ -403,13 +405,13 @@ assert.equal(
 );
 ```
 
-- [ ] **Step 2: Run UI tests to verify they fail**
+- [x] **Step 2: Run UI tests to verify they fail**
 
 Run: npm run test:unit -- --test-name-pattern="inlay" && npm run test:extension
 
 Expected: FAIL because reachable findings are not included in label selection and the commands are absent.
 
-- [ ] **Step 3: Implement priority, merged diagnostics, and commands**
+- [x] **Step 3: Implement priority, merged diagnostics, and commands**
 
 For every requirement, pass matching vulnerability findings to buildInlayLabel; show reachable vulnerability first, then retracted, deprecated, update, and local replacement. Preserve all lifecycle/update/vulnerability details in hover text.
 
@@ -417,7 +419,7 @@ In the snapshot handler, merge existing update/replacement/vulnerability diagnos
 
 Register the modbear content provider and commands. showTidyDiff opens a provider URI only when a current diff exists. The existing modBear.showDetails command opens a provider URI containing the selected finding's sanitized OSV ID, classification, fixed version, and advisory text. explainDependency checks workspace trust, resolves the requested module from the active snapshot, opens its returned text in a provider URI, and never runs for invalid input. openAdvisory validates the URI then calls vscode.env.openExternal.
 
-- [ ] **Step 4: Add manifest contributions**
+- [x] **Step 4: Add manifest contributions**
 
 ```json
 { "command": "modBear.explainDependency", "title": "ModBear: Explain Dependency" },
@@ -427,13 +429,13 @@ Register the modbear content provider and commands. showTidyDiff opens a provide
 
 Add command-menu visibility only where command arguments are available and retain all command paths behind requireTrustedWorkspace().
 
-- [ ] **Step 5: Run extension regression coverage**
+- [x] **Step 5: Run extension regression coverage**
 
 Run: npm run test:extension
 
 Expected: PASS; the full scan fixture retains update text in hover, chooses the security label, contains update/deprecation/tidy diagnostics, and does not mutate the fixture.
 
-- [ ] **Step 6: Commit the user-facing integration**
+- [x] **Step 6: Commit the user-facing integration**
 
 ```bash
 git add package.json src/diagnostics src/providers src/extension.ts src/test
@@ -451,13 +453,13 @@ git commit -m "feat: surface module health results"
 
 - Produces updated plan status only after all checks below pass.
 
-- [ ] **Step 1: Run static and automated verification**
+- [x] **Step 1: Run static and automated verification**
 
 Run: npm run check && npm run test:unit && npm run test:integration && npm run test:extension && npm run package
 
 Expected: every command exits 0.
 
-- [ ] **Step 2: Verify no unsafe production operation was introduced**
+- [x] **Step 2: Verify no unsafe production operation was introduced**
 
 Run:
 
@@ -468,13 +470,13 @@ Run:
 
 Expected: no production implementation match; manually inspect permitted display-only go get suggestion strings if present.
 
-- [ ] **Step 3: Review packaging and working-tree scope**
+- [x] **Step 3: Review packaging and working-tree scope**
 
 Run: npm run test:release && git diff --check && git status --short
 
 Expected: release metadata passes, whitespace is clean, and only intended implementation/plan files are staged for their corresponding commits.
 
-- [ ] **Step 4: Mark plans complete and commit the release gate**
+- [x] **Step 4: Mark plans complete and commit the release gate**
 
 After the verification commands pass, change the original health plan and completed remediation plan status to completed, without altering their historical task text.
 

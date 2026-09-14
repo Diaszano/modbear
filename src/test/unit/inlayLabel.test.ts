@@ -1,6 +1,76 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import test from "node:test";
-import { buildInlayLabel } from "../../providers/inlayLabel";
+import type { DependencyStatus } from "../../domain/analysis";
+import type { VulnerabilityFinding } from "../../domain/vulnerability";
+
+import type * as InlayProvider from "../../providers/dependencyInlayHintsProvider";
+
+const nodeRequire = createRequire(__filename);
+const moduleLoader = nodeRequire("node:module") as {
+  _load: (request: string, parent: unknown, isMain: boolean) => unknown;
+};
+const originalLoad = moduleLoader._load;
+moduleLoader._load = function (request, parent, isMain) {
+  if (request === "vscode") {
+    return {};
+  }
+  return originalLoad.call(this, request, parent, isMain);
+};
+
+const { buildInlayLabel } = nodeRequire("../../providers/dependencyInlayHintsProvider") as typeof InlayProvider;
+
+function baseStatus(overrides: Partial<DependencyStatus> = {}): DependencyStatus {
+  return {
+    modulePath: "a",
+    installedVersion: "v1.0.0",
+    retractionRationales: [],
+    errors: [],
+    ...overrides,
+  };
+}
+
+test("prioritizes a reachable vulnerability over every other label", () => {
+  const finding = {
+    osvId: "GO-2026-0001",
+    fixedVersion: "v1.2.3",
+    classification: "reachable",
+    trace: [],
+  } as unknown as VulnerabilityFinding;
+  assert.equal(
+    buildInlayLabel(
+      baseStatus({
+        availableVersion: "v1.1.0",
+        updateKind: "minor",
+        deprecatedMessage: "use b",
+        retractionRationales: ["bad"],
+      }),
+      true,
+      [finding],
+    ),
+    "🛡 fixed in v1.2.3",
+  );
+});
+
+test("marks a reachable vulnerability without a fix", () => {
+  const finding = { classification: "reachable", trace: [] } as unknown as VulnerabilityFinding;
+  assert.equal(buildInlayLabel(baseStatus({ availableVersion: "v1.1.0" }), true, [finding]), "🛡 vulnerable · no fix");
+});
+
+test("keeps lifecycle labels when findings are only imported or module-only", () => {
+  const imported = { classification: "imported", trace: [] } as unknown as VulnerabilityFinding;
+  const moduleOnly = { classification: "module-only", trace: [] } as unknown as VulnerabilityFinding;
+  assert.equal(
+    buildInlayLabel(baseStatus({ availableVersion: "v1.1.0", updateKind: "minor" }), true, [imported, moduleOnly]),
+    "→ v1.1.0 · minor",
+  );
+});
+
+test("prefers the earliest fixed vulnerable version among reachable findings", () => {
+  const fixed = { classification: "reachable", fixedVersion: "v1.2.3", trace: [] } as unknown as VulnerabilityFinding;
+  const unfixed = { classification: "reachable", trace: [] } as unknown as VulnerabilityFinding;
+  assert.equal(buildInlayLabel(baseStatus(), true, [unfixed, fixed]), "🛡 fixed in v1.2.3");
+});
 
 test("prioritizes retraction over update", () => {
   assert.equal(

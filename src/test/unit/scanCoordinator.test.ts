@@ -49,7 +49,7 @@ test("ScanCoordinator emits snapshot event when scan finishes", async () => {
   const coordinator = new ScanCoordinator();
   const received: ModuleAnalysisSnapshot[] = [];
 
-  const unsubscribe = coordinator.events.onSnapshot((s) => received.push(s));
+  const unsubscribe = coordinator.onSnapshot((s) => received.push(s));
 
   await coordinator.scanModule({
     module: dummyModule,
@@ -137,7 +137,7 @@ test("ScanCoordinator dispose aborts active scans", async () => {
 test("ScanCoordinator stores and emits fallback failed snapshot on non-abort error", async () => {
   const coordinator = new ScanCoordinator();
   const emitted: ModuleAnalysisSnapshot[] = [];
-  coordinator.events.onSnapshot((s) => emitted.push(s));
+  coordinator.onSnapshot((s) => emitted.push(s));
 
   const scanPromise = coordinator.scanModule({
     module: dummyModule,
@@ -208,6 +208,32 @@ test("keeps an initial failed snapshot failed when the next scan also fails", as
   assert.deepEqual(snapshot.dependencies, []);
 });
 
+test("retains prior tidy and toolchain results flagged stale when a whole scan fails", async () => {
+  const coordinator = new ScanCoordinator();
+  const richSnapshot: ModuleAnalysisSnapshot = {
+    ...mockSnapshot,
+    tidy: { state: "complete", consistent: true, errors: [], scannedAt: "2026-07-21T00:00:00Z" },
+    toolchain: { state: "complete", installed: "go1.24.0", errors: [] },
+  };
+  await coordinator.scanModule({ module: dummyModule, contentHash: "rich", run: async () => richSnapshot });
+  await assert.rejects(
+    coordinator.scanModule({
+      module: dummyModule,
+      contentHash: "broken",
+      run: async () => {
+        throw new Error("refresh failed");
+      },
+    }),
+  );
+
+  const snapshot = coordinator.getSnapshot(dummyModule.id)!;
+  assert.equal(snapshot.stale, true);
+  assert.equal(snapshot.updateState, "partial");
+  assert.deepEqual(snapshot.tidy, richSnapshot.tidy);
+  assert.deepEqual(snapshot.toolchain, richSnapshot.toolchain);
+  assert.deepEqual(snapshot.dependencies, richSnapshot.dependencies);
+});
+
 test("AnalysisCache stores and retrieves snapshots from disk", async () => {
   const tmpDir = await mkdtemp(path.join(os.tmpdir(), "modbear-test-cache-"));
   try {
@@ -257,20 +283,33 @@ test("ScanCoordinator and ModuleScanner emit structured scan lifecycle events", 
       goModPath,
     };
 
-    // First scan: cache miss, fails because of invalid-go
+    // First scan: cache miss, update phase fails because of invalid-go but yields a partial snapshot
     const request = {
       module: moduleContext,
       contentHash: "hash-event-miss",
       run: (signal: AbortSignal) => scanner.scan(moduleContext, signal),
     };
 
-    await assert.rejects(coordinator.scanModule(request));
+    const partialSnapshot = await coordinator.scanModule(request);
+
+    assert.equal(partialSnapshot.updateState, "partial");
 
     assert.ok(
       loggedEvents.some((e) => e.name === "scan.started" && e.fields.includes("cache=miss") && e.level === "info"),
     );
     assert.ok(
-      loggedEvents.some((e) => e.name === "scan.failed" && e.fields.includes("kind=spawn") && e.level === "error"),
+      loggedEvents.some(
+        (e) => e.name === "scan.phase.failed" && e.fields.includes("code=tool-not-found") && e.level === "warn",
+      ),
+    );
+    assert.ok(
+      loggedEvents.some(
+        (e) =>
+          e.name === "scan.finished" &&
+          e.fields.includes("outcome=partial") &&
+          e.fields.includes("cache=miss") &&
+          e.level === "info",
+      ),
     );
 
     // Now populate cache using the contentHash to get a cache hit
@@ -282,6 +321,7 @@ test("ScanCoordinator and ModuleScanner emit structured scan lifecycle events", 
       goExecutable: "invalid-go",
       timeoutMs: 5000,
       vulnerability: undefined,
+      tidy: { enabled: false, eligible: false },
     });
 
     const mockSnapshot: ModuleAnalysisSnapshot = {

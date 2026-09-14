@@ -16,8 +16,3 @@ export interface ModuleContext {
   readonly workspaceFolder?: string;
   readonly goWorkPath?: string;
 }
-
-export interface DirectiveValue {
-  readonly value: string;
-  readonly range: TextRange;
-}

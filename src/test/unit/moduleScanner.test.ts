@@ -29,13 +29,15 @@ test("ModuleScanner logs targeted go list arguments before a process failure", a
     };
 
     const controller = new AbortController();
-    await assert.rejects(scanner.scan(moduleContext, controller.signal));
+    const snapshot = await scanner.scan(moduleContext, controller.signal);
 
     assert.equal(loggedCommands.length, 1);
     const cmd = loggedCommands[0]!;
     assert.equal(cmd.executable, "missing-go-for-logging-test");
     assert.deepEqual(cmd.args, ["list", "-m", "-u", "-json", "-mod=readonly", "example.com/foo"]);
     assert.equal(cmd.cwd, tmpDir);
+    assert.equal(snapshot.updateState, "partial");
+    assert.deepEqual(snapshot.dependencies, []);
   } finally {
     await rm(tmpDir, { recursive: true, force: true });
   }

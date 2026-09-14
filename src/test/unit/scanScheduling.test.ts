@@ -99,3 +99,28 @@ test("ScanScheduler does not trigger scan if modBear.enabled is false", async (t
   assert.equal(runs.length, 0);
   scheduler.dispose();
 });
+
+test("ScanScheduler forwards save and open triggers to the scan request", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const ScanScheduler = await loadScanScheduler();
+
+  const runs: { id: string; trigger: string }[] = [];
+  const scheduler = new ScanScheduler((mod: any, trigger: string) => {
+    runs.push({ id: mod.id, trigger });
+  });
+
+  const config = { enabled: true, onSave: true, onOpen: true };
+  const modA = { id: "module-a" };
+
+  scheduler.triggerScan(modA, true, config);
+  t.mock.timers.tick(500);
+  scheduler.triggerScan(modA, false, config);
+  t.mock.timers.tick(500);
+
+  assert.deepEqual(runs, [
+    { id: "module-a", trigger: "save" },
+    { id: "module-a", trigger: "background" },
+  ]);
+
+  scheduler.dispose();
+});
