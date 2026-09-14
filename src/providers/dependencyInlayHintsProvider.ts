@@ -1,10 +1,32 @@
 import * as vscode from "vscode";
 import type { GoModDocumentCache } from "../parsers/goModDocumentCache";
-import { buildInlayLabel } from "./inlayLabel";
 import type { ScanCoordinator } from "../orchestration/scanCoordinator";
 import type { ModuleContext } from "../domain/module";
+import type { DependencyStatus } from "../domain/analysis";
 import type { VulnerabilityFinding } from "../domain/vulnerability";
 import { PREPARE_UPDATE_COMMAND_ID, type PrepareUpdateArgs } from "./terminalUpdateManager";
+
+export function buildInlayLabel(
+  status: DependencyStatus,
+  showKind: boolean,
+  findings: readonly VulnerabilityFinding[] = [],
+): string | undefined {
+  const reachable = findings.filter((finding) => finding.classification === "reachable");
+  if (reachable.length > 0) {
+    const withFix = reachable.find((finding) => finding.fixedVersion);
+    return withFix ? `🛡 fixed in ${withFix.fixedVersion}` : "🛡 vulnerable · no fix";
+  }
+  if (status.retractionRationales.length > 0) {
+    return status.availableVersion ? `⚠ retracted · → ${status.availableVersion}` : "⚠ retracted";
+  }
+  if (status.deprecatedMessage) return "⚠ deprecated";
+  if (status.availableVersion) {
+    const kind = showKind && status.updateKind ? ` · ${status.updateKind}` : "";
+    return `→ ${status.availableVersion}${kind}`;
+  }
+  if (status.replacement?.local) return "↪ local replacement";
+  return undefined;
+}
 
 function collectFindingsByModule(findings: readonly VulnerabilityFinding[]): Map<string, VulnerabilityFinding[]> {
   const byModule = new Map<string, VulnerabilityFinding[]>();

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { DependencyStatus } from "../../domain/analysis";
 import type { VulnerabilityFinding } from "../../domain/vulnerability";
-import { buildInlayLabel } from "../../providers/inlayLabel";
+import { buildInlayLabel } from "../../providers/dependencyInlayHintsProvider";
 
 function baseStatus(overrides: Partial<DependencyStatus> = {}): DependencyStatus {
   return {
