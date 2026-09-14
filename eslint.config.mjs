@@ -2,7 +2,7 @@ import eslint from "@eslint/js";
 import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
-const typedFiles = ["src/**/*.ts", "esbuild.ts", "eslint.config.ts"];
+const typedFiles = ["src/**/*.ts", "esbuild.ts"];
 
 export default defineConfig(
   {
@@ -72,7 +72,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/test/**/*.ts", "esbuild.ts", "eslint.config.ts"],
+    files: ["src/test/**/*.ts", "esbuild.ts", "eslint.config.mjs"],
     rules: {
       "@typescript-eslint/no-empty-function": "off",
       "no-console": "off",
