@@ -47,3 +47,9 @@ test("changing GOPROXY changes the cache key", () => {
     process.env.GOPROXY = original;
   }
 });
+
+test("differing goVersion produces different cache keys", () => {
+  const key1 = createCacheKey({ moduleRoot: "/x", goVersion: "go version go1.24.0 linux/amd64" });
+  const key2 = createCacheKey({ moduleRoot: "/x", goVersion: "go version go1.25.0 linux/amd64" });
+  assert.notEqual(key1, key2);
+});

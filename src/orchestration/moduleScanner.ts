@@ -100,7 +100,7 @@ export class ModuleScanner {
   ): Promise<ModuleAnalysisSnapshot> {
     const startTime = Date.now();
     try {
-      const [goMod, goSum, goWork] = await Promise.all([
+      const [goMod, goSum, goWork, goVersion] = await Promise.all([
         readFile(module.goModPath, "utf8"),
         module.goSumPath ? readFile(module.goSumPath, "utf8").catch(() => "") : Promise.resolve(""),
         module.goWorkPath ? readFile(module.goWorkPath, "utf8").catch(() => "") : Promise.resolve(""),
@@ -112,6 +112,7 @@ export class ModuleScanner {
         goMod,
         goSum,
         goWork,
+        goVersion,
         goExecutable: this.goExecutable,
         timeoutMs: this.timeoutMs,
         vulnerability: this.vulnerability && {
