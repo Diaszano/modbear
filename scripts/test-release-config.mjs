@@ -9,6 +9,7 @@ import commitlintLoad from "@commitlint/load";
 import { load } from "js-yaml";
 
 const config = JSON.parse(await readFile(".releaserc.json", "utf8"));
+const biomeConfig = JSON.parse(await readFile("biome.json", "utf8"));
 const packageJson = JSON.parse(await readFile("package.json", "utf8"));
 const packageLock = JSON.parse(await readFile("package-lock.json", "utf8"));
 const nvmrc = (await readFile(".nvmrc", "utf8")).trim();
@@ -29,12 +30,17 @@ assert.equal(
 );
 assert.equal(packageJson.scripts.format, "biome format --write .");
 assert.equal(packageJson.scripts["format:check"], "biome format .");
-assert.equal(packageJson.scripts.lint, "biome lint .");
-assert.equal(packageJson.scripts["lint:fix"], "biome lint --write .");
+assert.equal(packageJson.scripts.lint, "biome lint --error-on-warnings .");
+assert.equal(packageJson.scripts["lint:fix"], "biome lint --write --error-on-warnings .");
 assert.ok(packageJson.devDependencies["@biomejs/biome"]);
 for (const replacedDependency of ["@eslint/js", "eslint", "prettier", "typescript-eslint"]) {
   assert.equal(packageJson.devDependencies[replacedDependency], undefined);
 }
+assert.equal(biomeConfig.linter.rules.nursery.noFloatingPromises, "error");
+assert.equal(biomeConfig.linter.rules.nursery.noMisusedPromises, "error");
+assert.equal(biomeConfig.linter.rules.nursery.noUnsafePlusOperands, "error");
+assert.equal(biomeConfig.linter.rules.nursery.useAwaitThenable, "error");
+assert.equal(biomeConfig.linter.rules.suspicious.noConsole, "error");
 assert.equal(packageJson.scripts["test:package"], "node scripts/test-package-config.mjs");
 
 const actionRefs = {

@@ -22,7 +22,10 @@
     "rules": {
       "preset": "recommended",
       "nursery": {
-        "noFloatingPromises": "error"
+        "noFloatingPromises": "error",
+        "noMisusedPromises": "error",
+        "noUnsafePlusOperands": "error",
+        "useAwaitThenable": "error"
       },
       "suspicious": {
         "noAssignInExpressions": "off",
