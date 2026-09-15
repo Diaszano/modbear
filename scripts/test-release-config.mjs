@@ -6,7 +6,6 @@ import { join, resolve } from "node:path";
 import { analyzeCommits } from "@semantic-release/commit-analyzer";
 import commitlintLint from "@commitlint/lint";
 import commitlintLoad from "@commitlint/load";
-import { ESLint } from "eslint";
 import { load } from "js-yaml";
 
 const config = JSON.parse(await readFile(".releaserc.json", "utf8"));
@@ -28,6 +27,14 @@ assert.equal(
   packageJson.scripts["check-types"],
   "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tools.json --noEmit",
 );
+assert.equal(packageJson.scripts.format, "biome format --write .");
+assert.equal(packageJson.scripts["format:check"], "biome format .");
+assert.equal(packageJson.scripts.lint, "biome lint .");
+assert.equal(packageJson.scripts["lint:fix"], "biome lint --write .");
+assert.ok(packageJson.devDependencies["@biomejs/biome"]);
+for (const replacedDependency of ["@eslint/js", "eslint", "prettier", "typescript-eslint"]) {
+  assert.equal(packageJson.devDependencies[replacedDependency], undefined);
+}
 assert.equal(packageJson.scripts["test:package"], "node scripts/test-package-config.mjs");
 
 const actionRefs = {
@@ -141,25 +148,6 @@ assert.equal(
   newLegacyTitleValidation.valid,
   false,
   "Only the historical legacy SHA may bypass conventional commit validation",
-);
-
-const eslint = new ESLint();
-const testFileConfig = await eslint.calculateConfigForFile("src/test/unit/smoke.test.ts");
-assert.deepEqual(
-  testFileConfig.rules["@typescript-eslint/no-floating-promises"],
-  [
-    2,
-    {
-      allowForKnownSafeCalls: [{ from: "package", name: "test", package: "node:test" }],
-    },
-  ],
-  "Test files must require handled promises while allowing node:test registrations",
-);
-const toolingConfig = await eslint.calculateConfigForFile("esbuild.ts");
-assert.deepEqual(
-  toolingConfig.rules["@typescript-eslint/no-floating-promises"],
-  [2],
-  "Tooling files must require handled promises",
 );
 
 const semanticRelease = releaseWorkflow.jobs.release.steps.find((entry) => entry.id === "semantic-release");
