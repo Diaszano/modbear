@@ -6,10 +6,10 @@ import { join, resolve } from "node:path";
 import { analyzeCommits } from "@semantic-release/commit-analyzer";
 import commitlintLint from "@commitlint/lint";
 import commitlintLoad from "@commitlint/load";
-import { ESLint } from "eslint";
 import { load } from "js-yaml";
 
 const config = JSON.parse(await readFile(".releaserc.json", "utf8"));
+const biomeConfig = JSON.parse(await readFile("biome.json", "utf8"));
 const packageJson = JSON.parse(await readFile("package.json", "utf8"));
 const packageLock = JSON.parse(await readFile("package-lock.json", "utf8"));
 const nvmrc = (await readFile(".nvmrc", "utf8")).trim();
@@ -28,6 +28,19 @@ assert.equal(
   packageJson.scripts["check-types"],
   "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tools.json --noEmit",
 );
+assert.equal(packageJson.scripts.format, "biome format --write .");
+assert.equal(packageJson.scripts["format:check"], "biome format .");
+assert.equal(packageJson.scripts.lint, "biome lint --error-on-warnings .");
+assert.equal(packageJson.scripts["lint:fix"], "biome lint --write --error-on-warnings .");
+assert.ok(packageJson.devDependencies["@biomejs/biome"]);
+for (const replacedDependency of ["@eslint/js", "eslint", "prettier", "typescript-eslint"]) {
+  assert.equal(packageJson.devDependencies[replacedDependency], undefined);
+}
+assert.equal(biomeConfig.linter.rules.nursery.noFloatingPromises, "error");
+assert.equal(biomeConfig.linter.rules.nursery.noMisusedPromises, "error");
+assert.equal(biomeConfig.linter.rules.nursery.noUnsafePlusOperands, "error");
+assert.equal(biomeConfig.linter.rules.nursery.useAwaitThenable, "error");
+assert.equal(biomeConfig.linter.rules.suspicious.noConsole, "error");
 assert.equal(packageJson.scripts["test:package"], "node scripts/test-package-config.mjs");
 
 const actionRefs = {
@@ -141,25 +154,6 @@ assert.equal(
   newLegacyTitleValidation.valid,
   false,
   "Only the historical legacy SHA may bypass conventional commit validation",
-);
-
-const eslint = new ESLint();
-const testFileConfig = await eslint.calculateConfigForFile("src/test/unit/smoke.test.ts");
-assert.deepEqual(
-  testFileConfig.rules["@typescript-eslint/no-floating-promises"],
-  [
-    2,
-    {
-      allowForKnownSafeCalls: [{ from: "package", name: "test", package: "node:test" }],
-    },
-  ],
-  "Test files must require handled promises while allowing node:test registrations",
-);
-const toolingConfig = await eslint.calculateConfigForFile("esbuild.ts");
-assert.deepEqual(
-  toolingConfig.rules["@typescript-eslint/no-floating-promises"],
-  [2],
-  "Tooling files must require handled promises",
 );
 
 const semanticRelease = releaseWorkflow.jobs.release.steps.find((entry) => entry.id === "semantic-release");

@@ -83,7 +83,7 @@ test("ScanCoordinator cancels superseded scans", async () => {
     module: dummyModule,
     contentHash: "hash-1",
     run: (signal) =>
-      new Promise<ModuleAnalysisSnapshot>((resolve, reject) => {
+      new Promise<ModuleAnalysisSnapshot>((_resolve, reject) => {
         signal.addEventListener("abort", () => {
           firstAborted = true;
           reject(new Error("Scan cancelled"));
