@@ -33,7 +33,7 @@ assert.equal(packageJson.scripts["test:package"], "node scripts/test-package-con
 const actionRefs = {
   "actions/checkout": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
   "actions/setup-node": "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
-  "actions/dependency-review-action": "actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019",
+  "actions/dependency-review-action": "actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294",
 };
 const workflows = { ci: ciWorkflow, release: releaseWorkflow, prTitle: prTitleWorkflow };
 const expectAction = (workflowName, jobName, action) => {
