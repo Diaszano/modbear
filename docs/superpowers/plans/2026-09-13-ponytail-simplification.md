@@ -89,12 +89,12 @@
 - Consumes: None
 - Produces: Clean `src/domain/module.ts` without dead exports
 
-- [ ] **Step 1: Verify `DirectiveValue` has zero usages**
+- [x] **Step 1: Verify `DirectiveValue` has zero usages**
 
 Run: `grep -rn "DirectiveValue" src/`
 Expected: Only in `src/domain/module.ts`.
 
-- [ ] **Step 2: Remove `DirectiveValue` from `src/domain/module.ts`**
+- [x] **Step 2: Remove `DirectiveValue` from `src/domain/module.ts`**
 
 In `src/domain/module.ts`, remove lines 20-24:
 
@@ -105,12 +105,12 @@ export interface DirectiveValue {
 }
 ```
 
-- [ ] **Step 3: Verify TypeScript compilation**
+- [x] **Step 3: Verify TypeScript compilation**
 
 Run: `npm run check`
 Expected: PASS with 0 errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/domain/module.ts
@@ -131,11 +131,11 @@ git commit -m "refactor(domain): remove unused DirectiveValue interface"
 - Consumes: None
 - Produces: `src/logging/redaction.ts` exporting only `redactUrlCredentials` and `redactLogText`
 
-- [ ] **Step 1: Update unit test to remove dead wrapper checks**
+- [x] **Step 1: Update unit test to remove dead wrapper checks**
 
 In `src/test/unit/environment.test.ts`, remove test cases that explicitly test `redactCommand` and `redactLogMessage`. Verify that tests for `redactLogText` and `redactUrlCredentials` remain intact.
 
-- [ ] **Step 2: Remove dead functions in `src/logging/redaction.ts`**
+- [x] **Step 2: Remove dead functions in `src/logging/redaction.ts`**
 
 In `src/logging/redaction.ts`, delete:
 
@@ -149,12 +149,12 @@ export function redactLogMessage(message: string): string {
 }
 ```
 
-- [ ] **Step 3: Run unit tests and type check**
+- [x] **Step 3: Run unit tests and type check**
 
 Run: `npm run check && npm run test:unit:run`
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/logging/redaction.ts src/test/unit/environment.test.ts
@@ -176,7 +176,7 @@ git commit -m "refactor(logging): remove unused redactCommand and redactLogMessa
 - Consumes: None
 - Produces: `src/extension.ts` exports `export const EXTENSION_ID = "diaszano.modbear";`
 
-- [ ] **Step 1: Update `src/extension.ts` to define and export `EXTENSION_ID` directly**
+- [x] **Step 1: Update `src/extension.ts` to define and export `EXTENSION_ID` directly**
 
 Remove `import { EXTENSION_ID } from "./metadata";`.
 Add:
@@ -185,11 +185,11 @@ Add:
 export const EXTENSION_ID = "diaszano.modbear";
 ```
 
-- [ ] **Step 2: Delete `src/metadata.ts`**
+- [x] **Step 2: Delete `src/metadata.ts`**
 
 Run: `rm src/metadata.ts`
 
-- [ ] **Step 3: Update imports in `src/test/unit/smoke.test.ts`**
+- [x] **Step 3: Update imports in `src/test/unit/smoke.test.ts`**
 
 Change:
 
@@ -203,12 +203,12 @@ To:
 import { EXTENSION_ID } from "../../extension";
 ```
 
-- [ ] **Step 4: Run typecheck and smoke tests**
+- [x] **Step 4: Run typecheck and smoke tests**
 
 Run: `npm run check && node --test out/test/unit/smoke.test.js`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/extension.ts src/test/unit/smoke.test.ts
@@ -230,7 +230,7 @@ git commit -m "refactor(metadata): inline EXTENSION_ID into extension.ts"
 - Consumes: `advisories = new Map<string, GovulncheckAdvisory>()`
 - Produces: `stream.advisories: ReadonlyMap<string, GovulncheckAdvisory>`
 
-- [ ] **Step 1: Update `src/test/unit/govulncheckJsonParser.test.ts`**
+- [x] **Step 1: Update `src/test/unit/govulncheckJsonParser.test.ts`**
 
 Replace the test that asserts custom `ImmutableMap` throwing on mutation with an assertion that `stream.advisories` is a `ReadonlyMap` with correct lookup semantics:
 
@@ -243,7 +243,7 @@ test("exposes advisories through a ReadonlyMap", () => {
 });
 ```
 
-- [ ] **Step 2: Delete `ImmutableMap` in `src/parsers/govulncheckJsonParser.ts`**
+- [x] **Step 2: Delete `ImmutableMap` in `src/parsers/govulncheckJsonParser.ts`**
 
 Delete lines 13-54 (`class ImmutableMap`).
 In `parseGovulncheckStream`, return:
@@ -257,12 +257,12 @@ return Object.freeze({
 });
 ```
 
-- [ ] **Step 3: Run unit tests**
+- [x] **Step 3: Run unit tests**
 
 Run: `node --test 'out/test/unit/govulncheckJsonParser.test.js'`
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/parsers/govulncheckJsonParser.ts src/test/unit/govulncheckJsonParser.test.ts
@@ -282,7 +282,7 @@ git commit -m "refactor(parser): replace hand-rolled ImmutableMap with native Ma
 - Consumes: Raw JSON record
 - Produces: Parsed config, progress, advisory, trace frames using standard property assignment
 
-- [ ] **Step 1: Simplify property assignments in `parseConfig`, `parseProgress`, `parseAdvisory`, `parseTraceFrame`, and `parsePosition`**
+- [x] **Step 1: Simplify property assignments in `parseConfig`, `parseProgress`, `parseAdvisory`, `parseTraceFrame`, and `parsePosition`**
 
 Replace helper invocations `...optionalStringProperty(record, "k", "prop", line, "lbl")` with inline property assignment:
 
@@ -304,12 +304,12 @@ function parsePosition(value: unknown, lineNumber: number): GovulncheckPosition 
 
 Remove `optionalStringProperty` and `optionalNumberProperty`.
 
-- [ ] **Step 2: Run unit tests**
+- [x] **Step 2: Run unit tests**
 
 Run: `npm run compile && node --test 'out/test/unit/govulncheckJsonParser.test.js'`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/parsers/govulncheckJsonParser.ts
@@ -330,7 +330,7 @@ git commit -m "refactor(parser): simplify optional property assignment in govuln
 - Consumes: None
 - Produces: `src/parsers/goListJsonParser.ts` exporting only `interface GoListModule`
 
-- [ ] **Step 1: Delete `parseGoListJson` and `isGoListModule` from `src/parsers/goListJsonParser.ts`**
+- [x] **Step 1: Delete `parseGoListJson` and `isGoListModule` from `src/parsers/goListJsonParser.ts`**
 
 Keep only the `GoListModule` interface:
 
@@ -351,16 +351,16 @@ export interface GoListModule {
 }
 ```
 
-- [ ] **Step 2: Delete `src/test/unit/goListJsonParser.test.ts`**
+- [x] **Step 2: Delete `src/test/unit/goListJsonParser.test.ts`**
 
 Run: `rm src/test/unit/goListJsonParser.test.ts`
 
-- [ ] **Step 3: Run unit tests and type checks**
+- [x] **Step 3: Run unit tests and type checks**
 
 Run: `npm run check && npm run test:unit:run`
 Expected: PASS. Stream parser tests continue to test go list JSON streaming.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/parsers/goListJsonParser.ts
@@ -383,17 +383,17 @@ git commit -m "refactor(parser): delete unused parseGoListJson and duplicate typ
 - Consumes: `DependencyStatus`, `showKind`, `findings`
 - Produces: `buildInlayLabel` exported from `dependencyInlayHintsProvider.ts`
 
-- [ ] **Step 1: Move `buildInlayLabel` into `dependencyInlayHintsProvider.ts`**
+- [x] **Step 1: Move `buildInlayLabel` into `dependencyInlayHintsProvider.ts`**
 
 In `src/providers/dependencyInlayHintsProvider.ts`:
 Add `export function buildInlayLabel(...)` directly into the file.
 Remove `import { buildInlayLabel } from "./inlayLabel";`.
 
-- [ ] **Step 2: Delete `src/providers/inlayLabel.ts`**
+- [x] **Step 2: Delete `src/providers/inlayLabel.ts`**
 
 Run: `rm src/providers/inlayLabel.ts`
 
-- [ ] **Step 3: Update `src/test/unit/inlayLabel.test.ts`**
+- [x] **Step 3: Update `src/test/unit/inlayLabel.test.ts`**
 
 Change import:
 
@@ -401,12 +401,12 @@ Change import:
 import { buildInlayLabel } from "../../providers/dependencyInlayHintsProvider";
 ```
 
-- [ ] **Step 4: Run unit tests**
+- [x] **Step 4: Run unit tests**
 
 Run: `npm run compile && node --test 'out/test/unit/inlayLabel.test.js'`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/providers/dependencyInlayHintsProvider.ts src/test/unit/inlayLabel.test.ts
@@ -430,7 +430,7 @@ git commit -m "refactor(providers): inline buildInlayLabel into dependencyInlayH
 - Consumes: `createCacheKey({ ..., goVersion?: string })`
 - Produces: Asynchronous `getGoVersion` only, no `spawnSync` fallback
 
-- [ ] **Step 1: Update `createCacheKey` in `src/cache/cacheKey.ts`**
+- [x] **Step 1: Update `createCacheKey` in `src/cache/cacheKey.ts`**
 
 Accept `goVersion` directly in `input`:
 
@@ -447,7 +447,7 @@ export function createCacheKey(input: Record<string, unknown>): string {
 }
 ```
 
-- [ ] **Step 2: Update `moduleScanner.ts` to pass `goVersion` from `Promise.all`**
+- [x] **Step 2: Update `moduleScanner.ts` to pass `goVersion` from `Promise.all`**
 
 ```typescript
 const [goMod, goSum, goWork, goVersion] = await Promise.all([
@@ -460,7 +460,7 @@ const [goMod, goSum, goWork, goVersion] = await Promise.all([
 
 Pass `goVersion` into `createCacheKey({ ..., goVersion })`.
 
-- [ ] **Step 3: Remove `getGoVersionSync` from `src/execution/goToolIdentity.ts`**
+- [x] **Step 3: Remove `getGoVersionSync` from `src/execution/goToolIdentity.ts`**
 
 Remove lines 28-44. Also simplify `getGoVersion` to avoid calling `getGoVersionSync` in catch:
 
@@ -486,12 +486,12 @@ export async function getGoVersion(goExecutable: string): Promise<string> {
 }
 ```
 
-- [ ] **Step 4: Run unit tests**
+- [x] **Step 4: Run unit tests**
 
 Run: `npm run compile && node --test 'out/test/unit/cacheKey.test.js'`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/execution/goToolIdentity.ts src/cache/cacheKey.ts src/orchestration/moduleScanner.ts
@@ -513,15 +513,15 @@ git commit -m "refactor(execution): eliminate synchronous getGoVersionSync and p
 - Consumes: `go.work` file text
 - Produces: `parseGoWorkUses` exported from `src/discovery/moduleDiscovery.ts`
 
-- [ ] **Step 1: Move `parseGoWorkUses` into `src/discovery/moduleDiscovery.ts`**
+- [x] **Step 1: Move `parseGoWorkUses` into `src/discovery/moduleDiscovery.ts`**
 
 Export `parseGoWorkUses(text: string): readonly string[]` directly from `src/discovery/moduleDiscovery.ts`. Remove import of `parseGoWorkUses` from `./goWorkParser`.
 
-- [ ] **Step 2: Delete `src/discovery/goWorkParser.ts`**
+- [x] **Step 2: Delete `src/discovery/goWorkParser.ts`**
 
 Run: `rm src/discovery/goWorkParser.ts`
 
-- [ ] **Step 3: Update `src/test/unit/goWorkParser.test.ts`**
+- [x] **Step 3: Update `src/test/unit/goWorkParser.test.ts`**
 
 Change import to:
 
@@ -529,12 +529,12 @@ Change import to:
 import { parseGoWorkUses } from "../../discovery/moduleDiscovery";
 ```
 
-- [ ] **Step 4: Run unit tests**
+- [x] **Step 4: Run unit tests**
 
 Run: `npm run compile && node --test 'out/test/unit/goWorkParser.test.js'`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/discovery/moduleDiscovery.ts src/test/unit/goWorkParser.test.ts
@@ -557,16 +557,16 @@ git commit -m "refactor(discovery): inline parseGoWorkUses into moduleDiscovery"
 - Consumes: `readonly GovulncheckFinding[]`
 - Produces: `aggregateVulnerabilities` exported from `src/analyzers/vulnerabilityAnalyzer.ts`
 
-- [ ] **Step 1: Move `aggregateVulnerabilities` and `classifyVulnerability` into `vulnerabilityAnalyzer.ts`**
+- [x] **Step 1: Move `aggregateVulnerabilities` and `classifyVulnerability` into `vulnerabilityAnalyzer.ts`**
 
 Place both functions directly in `src/analyzers/vulnerabilityAnalyzer.ts`. Export `aggregateVulnerabilities`.
 Remove `import { aggregateVulnerabilities } from "./vulnerabilityAggregator";`.
 
-- [ ] **Step 2: Delete `src/analyzers/vulnerabilityAggregator.ts`**
+- [x] **Step 2: Delete `src/analyzers/vulnerabilityAggregator.ts`**
 
 Run: `rm src/analyzers/vulnerabilityAggregator.ts`
 
-- [ ] **Step 3: Update `src/test/unit/vulnerabilityAggregator.test.ts`**
+- [x] **Step 3: Update `src/test/unit/vulnerabilityAggregator.test.ts`**
 
 Update import:
 
@@ -574,12 +574,12 @@ Update import:
 import { aggregateVulnerabilities } from "../../analyzers/vulnerabilityAnalyzer";
 ```
 
-- [ ] **Step 4: Run unit tests**
+- [x] **Step 4: Run unit tests**
 
 Run: `npm run compile && node --test 'out/test/unit/vulnerabilityAggregator.test.js'`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/analyzers/vulnerabilityAnalyzer.ts src/test/unit/vulnerabilityAggregator.test.ts
@@ -601,7 +601,7 @@ git commit -m "refactor(analyzers): inline aggregateVulnerabilities into vulnera
 - Consumes: `vscode.languages.createDiagnosticCollection("modbear")`
 - Produces: Native `vscode.DiagnosticCollection` usage
 
-- [ ] **Step 1: Update `src/extension.ts` to use `vscode.DiagnosticCollection` directly**
+- [x] **Step 1: Update `src/extension.ts` to use `vscode.DiagnosticCollection` directly**
 
 Remove `import { DiagnosticManager } from "./diagnostics/diagnosticManager";`.
 Replace:
@@ -628,16 +628,16 @@ In subscriptions:
 context.subscriptions.push(diagnosticCollection);
 ```
 
-- [ ] **Step 2: Delete `src/diagnostics/diagnosticManager.ts`**
+- [x] **Step 2: Delete `src/diagnostics/diagnosticManager.ts`**
 
 Run: `rm src/diagnostics/diagnosticManager.ts`
 
-- [ ] **Step 3: Run typecheck and extension tests**
+- [x] **Step 3: Run typecheck and extension tests**
 
 Run: `npm run check`
 Expected: PASS with 0 errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/extension.ts
@@ -661,7 +661,7 @@ git commit -m "refactor(diagnostics): replace DiagnosticManager wrapper with nat
 - Consumes: `documentPath: string`, `modules: readonly ModuleContext[]`
 - Produces: `resolveActiveModule` exported from `src/discovery/moduleDiscovery.ts`
 
-- [ ] **Step 1: Move `resolveActiveModule` into `src/discovery/moduleDiscovery.ts`**
+- [x] **Step 1: Move `resolveActiveModule` into `src/discovery/moduleDiscovery.ts`**
 
 Export `resolveActiveModule` from `src/discovery/moduleDiscovery.ts`.
 In `src/extension.ts`, change import to:
@@ -670,11 +670,11 @@ In `src/extension.ts`, change import to:
 import { discoverModules, resolveActiveModule, type ModuleDiscoveryResult } from "./discovery/moduleDiscovery";
 ```
 
-- [ ] **Step 2: Delete `src/discovery/activeModuleResolver.ts`**
+- [x] **Step 2: Delete `src/discovery/activeModuleResolver.ts`**
 
 Run: `rm src/discovery/activeModuleResolver.ts`
 
-- [ ] **Step 3: Update `src/test/unit/activeModuleResolver.test.ts`**
+- [x] **Step 3: Update `src/test/unit/activeModuleResolver.test.ts`**
 
 Change import to:
 
@@ -682,12 +682,12 @@ Change import to:
 import { resolveActiveModule } from "../../discovery/moduleDiscovery";
 ```
 
-- [ ] **Step 4: Run unit tests**
+- [x] **Step 4: Run unit tests**
 
 Run: `npm run compile && node --test 'out/test/unit/activeModuleResolver.test.js'`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/discovery/moduleDiscovery.ts src/extension.ts src/test/unit/activeModuleResolver.test.ts
@@ -710,7 +710,7 @@ git commit -m "refactor(discovery): inline resolveActiveModule into moduleDiscov
 - Consumes: `ModuleAnalysisSnapshot`
 - Produces: `onSnapshot(listener: (snapshot: ModuleAnalysisSnapshot) => void): () => void` directly on `ScanCoordinator`
 
-- [ ] **Step 1: Implement `onSnapshot` directly on `ScanCoordinator`**
+- [x] **Step 1: Implement `onSnapshot` directly on `ScanCoordinator`**
 
 In `src/orchestration/scanCoordinator.ts`:
 Add a listener set:
@@ -731,20 +731,20 @@ Add a listener set:
 Replace `this.events.emitSnapshot(snapshot)` with `this.emitSnapshot(snapshot)`.
 Remove `import { ScanEvents } from "./scanEvents";`.
 
-- [ ] **Step 2: Update `src/extension.ts`**
+- [x] **Step 2: Update `src/extension.ts`**
 
 Change `coordinator.events.onSnapshot(...)` to `coordinator.onSnapshot(...)`.
 
-- [ ] **Step 3: Delete `src/orchestration/scanEvents.ts`**
+- [x] **Step 3: Delete `src/orchestration/scanEvents.ts`**
 
 Run: `rm src/orchestration/scanEvents.ts`
 
-- [ ] **Step 4: Run unit tests and typecheck**
+- [x] **Step 4: Run unit tests and typecheck**
 
 Run: `npm run compile && node --test 'out/test/unit/scanCoordinator.test.js'`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/orchestration/scanCoordinator.ts src/extension.ts
@@ -767,16 +767,16 @@ git commit -m "refactor(orchestration): eliminate ScanEvents subclass in favor o
 - Consumes: `exitCode`, `stdout`, `stderr`
 - Produces: `classifyTidyResult` and `TidyCommandResult` exported from `tidyAnalyzer.ts`
 
-- [ ] **Step 1: Move `classifyTidyResult` and `TidyCommandResult` into `src/analyzers/tidyAnalyzer.ts`**
+- [x] **Step 1: Move `classifyTidyResult` and `TidyCommandResult` into `src/analyzers/tidyAnalyzer.ts`**
 
 Place the definition of `TidyCommandResult` and `classifyTidyResult` directly in `src/analyzers/tidyAnalyzer.ts`.
 Remove the import and re-export of `tidyDiffParser`.
 
-- [ ] **Step 2: Delete `src/parsers/tidyDiffParser.ts`**
+- [x] **Step 2: Delete `src/parsers/tidyDiffParser.ts`**
 
 Run: `rm src/parsers/tidyDiffParser.ts`
 
-- [ ] **Step 3: Update `src/test/unit/tidyDiffParser.test.ts`**
+- [x] **Step 3: Update `src/test/unit/tidyDiffParser.test.ts`**
 
 Change import to:
 
@@ -784,12 +784,12 @@ Change import to:
 import { classifyTidyResult } from "../../analyzers/tidyAnalyzer";
 ```
 
-- [ ] **Step 4: Run unit tests**
+- [x] **Step 4: Run unit tests**
 
 Run: `npm run compile && node --test 'out/test/unit/tidyDiffParser.test.js'`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/analyzers/tidyAnalyzer.ts src/test/unit/tidyDiffParser.test.ts
@@ -812,7 +812,7 @@ git commit -m "refactor(analyzers): inline classifyTidyResult into tidyAnalyzer"
 - Consumes: `ProcessResult`, `command: string`
 - Produces: `requireSuccessfulExit` exported from `src/execution/processRunner.ts`
 
-- [ ] **Step 1: Move `requireSuccessfulExit` into `src/execution/processRunner.ts`**
+- [x] **Step 1: Move `requireSuccessfulExit` into `src/execution/processRunner.ts`**
 
 In `src/execution/processRunner.ts`, add:
 
@@ -826,11 +826,11 @@ export function requireSuccessfulExit(result: ProcessResult, command: string): P
 }
 ```
 
-- [ ] **Step 2: Delete `src/execution/processOutcome.ts`**
+- [x] **Step 2: Delete `src/execution/processOutcome.ts`**
 
 Run: `rm src/execution/processOutcome.ts`
 
-- [ ] **Step 3: Update `src/analyzers/updateAnalyzer.ts`**
+- [x] **Step 3: Update `src/analyzers/updateAnalyzer.ts`**
 
 Change import:
 
@@ -838,12 +838,12 @@ Change import:
 import { requireSuccessfulExit, runProcess } from "../execution/processRunner";
 ```
 
-- [ ] **Step 4: Run unit tests and typecheck**
+- [x] **Step 4: Run unit tests and typecheck**
 
 Run: `npm run check && npm run test:unit:run`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/execution/processRunner.ts src/analyzers/updateAnalyzer.ts
@@ -865,7 +865,7 @@ git commit -m "refactor(execution): inline requireSuccessfulExit into processRun
 - Consumes: Node 24 native `import { glob } from "node:fs/promises"`
 - Produces: 0 external dependencies for test suite discovery
 
-- [ ] **Step 1: Update `src/test/suite/index.ts`**
+- [x] **Step 1: Update `src/test/suite/index.ts`**
 
 Change line 3:
 
@@ -873,17 +873,17 @@ Change line 3:
 import { glob } from "node:fs/promises";
 ```
 
-- [ ] **Step 2: Remove `glob` from `package.json`**
+- [x] **Step 2: Remove `glob` from `package.json`**
 
 Remove `"glob": "^11.0.0",` from `devDependencies`.
 Run: `npm install` (or verify package lock).
 
-- [ ] **Step 3: Verify extension test compilation**
+- [x] **Step 3: Verify extension test compilation**
 
 Run: `npm run check && npm run compile`
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/test/suite/index.ts package.json package-lock.json
@@ -903,7 +903,7 @@ git commit -m "chore(deps): replace glob package with node:fs/promises glob"
 - Consumes: Node.js 24 native TypeScript execution
 - Produces: 0 external dependencies for running `esbuild.ts`
 
-- [ ] **Step 1: Update npm scripts in `package.json`**
+- [x] **Step 1: Update npm scripts in `package.json`**
 
 Replace:
 
@@ -923,17 +923,17 @@ With:
     "watch": "node --strip-types esbuild.ts --watch",
 ```
 
-- [ ] **Step 2: Remove `jiti` from `devDependencies` in `package.json`**
+- [x] **Step 2: Remove `jiti` from `devDependencies` in `package.json`**
 
 Remove `"jiti": "^2.7.0",`.
 Run: `npm install`.
 
-- [ ] **Step 3: Test bundling with native Node 24**
+- [x] **Step 3: Test bundling with native Node 24**
 
 Run: `npm run bundle`
 Expected: Output `dist/extension.js` generated cleanly.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add package.json package-lock.json
@@ -946,9 +946,9 @@ git commit -m "chore(deps): replace jiti with native node --strip-types"
 
 After all 17 tasks are implemented:
 
-- [ ] `npm run check`: Type checking passes with 0 errors.
-- [ ] `npm run lint`: Linting passes with 0 warnings.
-- [ ] `npm run format:check`: Code adheres to Prettier formatting.
-- [ ] `npm run test:unit`: All unit tests pass.
-- [ ] `npm run bundle`: Bundle succeeds using native Node 24.
-- [ ] Net line count reduction: ~280 lines cut, 2 devDependencies removed.
+- [x] `npm run check`: Type checking passes with 0 errors.
+- [x] `npm run lint`: Linting passes with 0 warnings.
+- [x] `npm run format:check`: Code adheres to Prettier formatting.
+- [x] `npm run test:unit`: All unit tests pass.
+- [x] `npm run bundle`: Bundle succeeds using native Node 24.
+- [x] Net line count reduction: ~280 lines cut, 2 devDependencies removed.
