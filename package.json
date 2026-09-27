@@ -259,7 +259,7 @@
     "@semantic-release/npm": "^13.1.5",
     "@semantic-release/release-notes-generator": "^14.1.1",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^24.13.4",
+    "@types/node": "^26.6.1",
     "@types/vscode": "1.125",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^4.0.0",
